@@ -8,7 +8,7 @@ services:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      - .:/workspace
+      - ${WORKSPACE_DIR:-.}:/workspace
       - ./.claude-config:/home/claude/.claude
     env_file:
       - .env.claude

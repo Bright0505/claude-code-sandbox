@@ -61,3 +61,33 @@ docker compose -f docker-compose.claude.yml run --rm claude-sandbox claude
 1. 保留 `Dockerfile.claude`、`docker-compose.claude.yml`、`docker-compose.claude.network.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
 2. 依專案實際的語言/框架，另外撰寫自己的 `Dockerfile`、`docker-compose.yml`（可選擇性搭配上方「連接專案自己的服務」章節，讓 sandbox 連得到）。
 3. 需要調整白名單網域時，編輯 `scripts/init-firewall.sh` 裡的 `ALLOWED_DOMAINS`。
+
+## 作為 Git Submodule 掛進其他專案
+
+想把這個 sandbox 掛進一個原本沒有 Claude Code 的既有專案，不用複製檔案，用 submodule 引用即可：
+
+```bash
+# 在主專案根目錄下執行
+git submodule add git@github.com:Bright0505/claude-code-sandbox.git claude-sandbox
+```
+
+`Dockerfile.claude`、`.claude-config/`、`.env.claude` 這些路徑都是相對於 `docker-compose.claude.yml` 檔案本身的位置解析，所以不管是獨立使用還是當 submodule 用，都不需要修改——它們永遠跟著 sandbox 一起走。唯一需要對外覆寫的是 `/workspace` 要掛載的目錄，因為 submodule 情境下要掛的是主專案根目錄，而不是 submodule 自己的目錄，用 `WORKSPACE_DIR` 環境變數指定（建議用絕對路徑 `$(pwd)`，避免相對路徑解析的疑慮）：
+
+```bash
+# 在主專案根目錄下執行
+cp claude-sandbox/.env.claude.example claude-sandbox/.env.claude   # 填入 ANTHROPIC_API_KEY
+
+WORKSPACE_DIR=$(pwd) docker compose \
+    -f claude-sandbox/docker-compose.claude.yml \
+    run --rm claude-sandbox claude
+```
+
+需要連接主專案自己的服務跑測試時，疊加 `docker-compose.claude.network.yml` 一起使用即可，用法跟上方「連接專案自己的服務」章節相同。
+
+之後 sandbox template 本身有更新，在主專案裡執行：
+
+```bash
+git submodule update --remote claude-sandbox
+```
+
+submodule 會把版本釘在特定 commit，更新前建議先看一下 template 端的變更再決定要不要跟進。
