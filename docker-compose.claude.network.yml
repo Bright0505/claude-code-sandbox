@@ -1,0 +1,28 @@
+# Optional overlay: attaches claude-sandbox to a project's own Docker
+# network so it can reach already-running services (e.g. an API, a DB) by
+# their compose service name and run tests against them.
+#
+# Usage:
+#   1. In the project's own docker-compose.yml, give its network a fixed
+#      name so it doesn't depend on the compose project/directory name:
+#        networks:
+#          default:
+#            name: app-net
+#   2. Bring the project up as usual:
+#        docker compose -f docker-compose.yml up -d
+#   3. Run the sandbox joined to that same network:
+#        docker compose -f docker-compose.claude.yml \
+#                       -f docker-compose.claude.network.yml \
+#                       run --rm claude-sandbox bash
+#      Inside, e.g. `curl http://api:3000/health` resolves via Docker DNS.
+#
+# Override the network name with: APP_NETWORK_NAME=my-net docker compose ...
+services:
+  claude-sandbox:
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    name: ${APP_NETWORK_NAME:-app-net}
+    external: true

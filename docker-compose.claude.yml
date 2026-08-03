@@ -1,0 +1,17 @@
+services:
+  claude-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.claude
+    image: claude-code-sandbox:latest
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - .:/workspace
+      - ./.claude-config:/home/claude/.claude
+    env_file:
+      - .env.claude
+    working_dir: /workspace
+    stdin_open: true
+    tty: true

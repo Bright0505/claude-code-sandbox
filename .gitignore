@@ -1,0 +1,3 @@
+.claude-config/
+.env.claude
+.claude/settings.local.json

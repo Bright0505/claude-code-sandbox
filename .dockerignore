@@ -1,0 +1,4 @@
+.git
+.claude-config
+.env.claude
+node_modules
