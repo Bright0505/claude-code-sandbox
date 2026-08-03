@@ -16,18 +16,30 @@ scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使�
 
 ## 快速開始
 
+支援兩種驗證方式,擇一即可:
+
+**方式一:Claude 訂閱帳號登入(不需要 API key)**
+
+```bash
+docker compose -f docker-compose.claude.yml run --rm claude-sandbox claude auth login
+```
+
+`.env.claude` 是選用的(`env_file` 已設為 `required: false`),不存在也能正常啟動。照著終端機印出的網址在主機瀏覽器上完成登入、貼回驗證碼即可,不需要對外開任何 port。
+
+**方式二:Anthropic Console API key**
+
 ```bash
 cp .env.claude.example .env.claude   # 填入 ANTHROPIC_API_KEY
 docker compose -f docker-compose.claude.yml run --rm claude-sandbox claude
 ```
 
-第一次登入的 session 會存在專案內的 `.claude-config/`,不會動到主機全域的 `~/.claude`,也不會跟其他專案共用。`.claude-config/` 與 `.env.claude` 都已加入 `.gitignore`,不會被提交。
+不論用哪一種方式,登入後的 session 都會存在專案內的 `.claude-config/`,不會動到主機全域的 `~/.claude`,也不會跟其他專案共用。`.claude-config/` 與 `.env.claude` 都已加入 `.gitignore`,不會被提交。
 
 ## 設計重點
 
 - **基底**：`node:24-bookworm-slim`(Node 24 LTS)。Claude Code CLI 本身是 Node 程式,因此不論專案語言是什麼,sandbox 都需要 Node——這跟專案自己的執行環境版本無關。
 - **非 root 使用者**：容器以 `claude`(uid/gid 1000)執行實際指令,只有防火牆設定階段短暫使用 root。
-- **網路白名單**：`init-firewall.sh` 預設擋掉所有對外連線,只放行 Claude Code 實際需要的網域(Anthropic API、GitHub、npm、PyPI 等)。任何未列在白名單的網域一律被擋。
+- **網路白名單**：`init-firewall.sh` 預設擋掉所有對外連線,只放行 Claude Code 實際需要的網域(Anthropic API、`platform.claude.com` 登入/token 交換、GitHub、npm、PyPI 等)。任何未列在白名單的網域一律被擋。
 - **不提供 docker socket / Docker-in-Docker**：sandbox 內刻意不能執行 `docker build`/`docker compose up` 之類的指令。掛載 host 的 `docker.sock` 等同給予 host root 權限,會讓前述的防火牆與非 root 隔離全部失去意義。專案自己的容器建置/啟動應該在 sandbox 外(人工或 CI)執行。
 
 ## 連接專案自己的服務(跑測試)

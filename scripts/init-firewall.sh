@@ -43,6 +43,7 @@ ipset create allowed-domains hash:ip
 ALLOWED_DOMAINS=(
     api.anthropic.com
     console.anthropic.com
+    platform.claude.com
     statsig.anthropic.com
     sentry.io
     github.com

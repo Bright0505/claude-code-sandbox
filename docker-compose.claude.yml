@@ -11,7 +11,8 @@ services:
       - ${WORKSPACE_DIR:-.}:/workspace
       - ./.claude-config:/home/claude/.claude
     env_file:
-      - .env.claude
+      - path: .env.claude
+        required: false
     working_dir: /workspace
     stdin_open: true
     tty: true
