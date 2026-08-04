@@ -9,6 +9,7 @@ services:
       - NET_RAW
     volumes:
       - ${WORKSPACE_DIR:-.}:/workspace
+      - ./scripts:/workspace/scripts:ro
       - ./.claude-config:/home/claude/.claude
     env_file:
       - path: .env.claude
