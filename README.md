@@ -5,6 +5,8 @@
 ## 目錄結構
 
 ```
+ONBOARDING.md                      開發規範 — 新人手冊（給人讀一次）
+CLAUDE.md                          開發規範 — 執行版（給 Claude 常駐）
 Dockerfile.claude                  Claude Code sandbox image
 docker-compose.claude.yml          啟動 sandbox 的主要 compose 檔
 docker-compose.claude.network.yml  選用 overlay：讓 sandbox 加入專案自己的網路
@@ -13,6 +15,13 @@ scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使�
 .env.claude.example                ANTHROPIC_API_KEY 範本
 .claude-config/                    (執行時產生) 專案專屬的 Claude Code 設定/登入狀態
 ```
+
+這個 template 提供兩樣獨立的東西，可以只用其中一樣：
+
+| | 內容 |
+|---|---|
+| **執行環境** | `Dockerfile.claude` + compose 檔 + `scripts/`：隔離的容器、網路白名單、非 root |
+| **開發規範** | `ONBOARDING.md` + `CLAUDE.md`：委託／執行／驗收的共同紀律 |
 
 ## 快速開始
 
@@ -66,6 +75,29 @@ docker compose -f docker-compose.claude.yml run --rm claude-sandbox claude
 
 網路名稱預設是 `app-net`,可用 `APP_NETWORK_NAME=my-net` 覆寫。`init-firewall.sh` 只會放行 sandbox 實際加入的網路子網段,不會因此打開整個私有網段(RFC1918),對外連線的白名單規則不受影響。
 
+## 開發規範
+
+一套給人與 Claude 共用的開發紀律，跟語言/框架無關。它與 sandbox 的執行環境是**獨立的兩件事** —— 不想用容器隔離、只想用這套規範，把兩個 `.md` 拿走即可；反之亦然。
+
+**預設的工作方式是：人委託、Claude 執行、人驗收。** 所以規範分成兩份，因為兩個讀者的需求相反：
+
+| 檔案 | 讀者 | 讀幾次 | 內容 |
+|---|---|---|---|
+| `ONBOARDING.md` | **人** | 一次，之後當字典 | 怎麼下委託（目標／範圍／驗收／參考）、怎麼看回報、名詞表、常見情況怎麼辦、禁令與**為什麼** |
+| `CLAUDE.md` | **Claude** | 每一輪都載入 | 動手前四步、可直接做的門檻、回報格式、鐵則、禁令、強度分級、觸發表 |
+
+`CLAUDE.md` 刻意壓在 130 行左右 —— 它每一輪都在付 token，而太長的規範會被部分忽略，被忽略的通常正是最具體有用的後半段。展開的細節放進 skill 按需載入（見 `CLAUDE.md` 的觸發表）。
+
+規範的核心是三件事：
+
+- **動手前四步**（回述／定位／講計畫／缺口分類）—— 施力點在任務進來的頭兩分鐘，下游所有問題都在那時候決定
+- **「可以不問直接做」有可檢查的五條門檻** —— 模糊的門檻等於沒有門檻。範圍外發現的問題一律不修，記錄並說
+- **回報格式固定**（改了什麼／為什麼／怎麼驗的／沒做什麼）—— 不論改動多小。門檻決定要不要問，回報決定人能不能監督
+
+刻意**不**包含專案特定資訊（架構、路徑、測試指令、領域知識）—— 那些屬於套用端自己的 `CLAUDE.md`。
+
+⚠️ **事故清單留給各專案自己累積。** 規範的可信度來自具體事故，而具體事故沒有人能替你預先寫好。只留通用原則的話，它會慢慢被當成背景噪音跳過。
+
 ## Template 用法
 
 套用這個 template 的專案，只需要:
@@ -73,6 +105,8 @@ docker compose -f docker-compose.claude.yml run --rm claude-sandbox claude
 1. 保留 `Dockerfile.claude`、`docker-compose.claude.yml`、`docker-compose.claude.network.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
 2. 依專案實際的語言/框架，另外撰寫自己的 `Dockerfile`、`docker-compose.yml`（可選擇性搭配上方「連接專案自己的服務」章節，讓 sandbox 連得到）。
 3. 需要調整白名單網域時，編輯 `scripts/init-firewall.sh` 裡的 `ALLOWED_DOMAINS`。
+4. `CLAUDE.md` 在專案根目錄會被 Claude Code 自動載入；專案特定資訊（架構、路徑、測試指令、事故清單）寫在它下方或另開一份引用。當 submodule 用時見下一節。
+5. 讓新人先讀一次 `ONBOARDING.md`。它不需要進 Claude 的 context，是純人用文件。
 
 ## 作為 Git Submodule 掛進其他專案
 
@@ -95,6 +129,16 @@ WORKSPACE_DIR=$(pwd) docker compose \
 ```
 
 需要連接主專案自己的服務跑測試時，疊加 `docker-compose.claude.network.yml` 一起使用即可，用法跟上方「連接專案自己的服務」章節相同。
+
+**開發規範在 submodule 情境下需要一行引用。** 子目錄的 `CLAUDE.md` 不會被自動載入，所以要在**主專案根目錄的 `CLAUDE.md`** 加：
+
+```markdown
+開發規範見 @claude-sandbox/CLAUDE.md
+```
+
+這樣主專案的 `CLAUDE.md` 只放專案特定內容（架構、路徑、指令、事故清單），規範跟著 template 一起更新。`ONBOARDING.md` 不需要引用 —— 直接叫新人去讀 `claude-sandbox/ONBOARDING.md` 就好。
+
+> 掛好後值得驗一次引用真的生效：問 Claude「你現在遵守哪些禁令？」，它應該答得出十條。答不出來就是那行 `@` 沒被讀到。
 
 之後 sandbox template 本身有更新，在主專案裡執行：
 
