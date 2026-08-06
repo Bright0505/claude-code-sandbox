@@ -131,7 +131,7 @@
 | 要記錄問題／決策，或開工前回查歷史 | `record` | ✅ |
 | 要動手寫程式碼 | `code` | 未建立 |
 | 要宣稱「驗過了」 | `verify` | 未建立 |
-| 要 commit、開 MR、處理 submodule | `deliver` | 未建立 |
+| 要 commit、開 MR、處理 submodule | `deliver` | ✅ |
 | 工具行為很怪、或「看起來成功」但可疑 | `traps` | 未建立 |
 
 > 未建立的 skill：依本檔的原則判斷，需要展開細節時直接詢問使用者。
