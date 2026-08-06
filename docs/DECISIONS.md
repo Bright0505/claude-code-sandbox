@@ -302,6 +302,14 @@ Claude 每一輪都載入，所以每行都在付 token。合成一份會同時�
 結構檢查現在就寫得出來。但**有門檻、有啟發式的部分仍要等真實樣本**
 （`影響範圍` 的措辭習慣、鏈的實際形狀）。
 
+**已實作**（2026-08-06）：`.claude/skills/record/scripts/check_known_issues_links.py`，
+只用標準庫，跟語言/框架無關（呼叫方式是純 CLI，讀專案自己的 `docs/KNOWN-ISSUES.md`）。
+邏輯先在 mcp-fda 專案（第一個採用本規範的真實案例）寫出、用 14 則故意壞掉的 fixture
+（每種紅燈各一個）驗證過（過程中抓到 2 個真的邏輯錯：`原子性判斷誤把 archive stub 列
+算進主檔集合`、`測試 fixture 本身漏填守備`，都已修正），再原樣回饋進本體。
+本體這裡的測試檔（`test_check_known_issues_links.py`）用標準庫 `unittest`，
+不是 mcp-fda 那邊用的 `pytest`——理由同上，本體不引入語言框架依賴。
+
 **日期**：2026-08-06
 
 ---
