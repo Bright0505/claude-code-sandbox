@@ -28,8 +28,8 @@
 
 ## 假設（若不對請說）
 
-- 用工程通用術語（baseline／mutation／dead code elimination／scope guard／
-  clean code）替代冗長中文描述。術語本身就是壓縮，且是這個領域的共同語言
+- 用工程術語替代冗長中文描述。**判準是資訊密度：這個詞是否真的替掉了一段解釋**
+  —— 不是「看起來像術語」（此假設於同日被修正，見問題紀錄）
 - 每則保留**一行**去專案化的實例當錨點，不全刪 —— 沒有實例的判準讀起來像口號，
   但實例不該佔據篇幅主體
 - 階段 1 只做 `code` 一個當試點。挑它不是因為最單純，是因為它**最能證明轉換
@@ -78,7 +78,8 @@ checklist（`traps`／`deliver` 已有此慣例，`code` 原本缺）。
 
 | 日期 | 項目 | commit | 驗證結果（實際觀察到什麼） |
 |---|---|---|---|
-| 2026-08-11 | C1 `code` skill 重寫（試點）| （見分支）| 100 → 78 行。5 則案例 → 5 個依時間排序的檢查點 + 收尾 checklist。三項驗收全過，對照表見上方，9 條判準零遺失 |
+| 2026-08-11 | C1 `code` skill 重寫（試點）| `49cb857` | 100 → 78 行。5 則案例 → 5 個依時間排序的檢查點 + 收尾 checklist。三項驗收全過，9 條判準零遺失 |
+| 2026-08-11 | C1 修正：術語誤用 + 刪除複述型 checklist | （見分支）| 78 → 74 行。`scope guard`／`clean code`／`source of truth` 三個誤用或不精準的詞替換完畢，grep 零命中；9 條判準複驗仍全數存在 |
 | 2026-08-11 | C2 `docs/tasks/README.md` | （見分支）| 索引建立，此前 `docs/tasks/` 不存在 —— `plan`／`record` 兩個 skill 都依賴它 |
 
 ### 階段 1 的觀察（供階段 2 參考）
@@ -95,4 +96,25 @@ checklist（`traps`／`deliver` 已有此慣例，`code` 原本缺）。
 
 | 日期 | 問題 | 根因 | 處理 | 已升級到 KNOWN-ISSUES？ |
 |---|---|---|---|---|
+| 2026-08-11 | **術語誤用**：`scope guard`（實為 C++ RAII idiom）拿來指範圍控制、`clean code`（實為命名／函式大小／SRP 的品質原則）拿來當收尾 checklist 的標題 | 把「用術語」誤解成「換上英文詞讓文字變短」，沒有回頭確認該詞的既定含義 | 全部替換為指向正確概念的術語：`scope creep`、`Definition of Done`、`impact analysis`、`kill the mutant`、`syntactic/semantic`。判準改為**資訊密度**（見下） | ⏳ 見下方「該升級的」 |
+| 2026-08-11 | 收尾 checklist 三條全是 §2／§3／§5 的複述 | 沿用 `traps`／`deliver` 有 checklist 的慣例，但沒問「這個 checklist 有沒有增值」 | 整段刪除。`traps`／`deliver` 的 checklist 可留，是因為它們跨小節或補充正文未講的（例如 submodule dirty 的紀錄要求）| ⏳ 見下方「該升級的」 |
 | 2026-08-11 | `docs/KNOWN-ISSUES.md` 不存在，但 `record`／`plan` skill 與 `CLAUDE.md` 都引用它 | 專案落地時未建立 | 階段 1 未處理 —— 建立它屬於另一件事（需要真實條目才有意義），不塞進這次範圍 | 尚無此檔可升級 |
+
+### 該升級到 KNOWN-ISSUES 的（待該檔建立後）
+
+前兩則符合「下一個碰到這塊的人，不知道會不會出事」的標準 —— 它們是**這批文件本身
+的失效形態**，而階段 2 還要對五個 skill 重做同一件事，很可能再踩。
+
+### 術語判準（階段 2 直接套用）
+
+**用術語的目的是不用解釋。** 一個詞若無法替掉一段解釋，它就沒有發揮作用；
+用了術語卻還要補三條說明，代表**要嘛術語是多餘的、要嘛用錯了**。
+
+因此每個術語下筆前確認兩件事：
+
+1. **它的既定含義是什麼** —— `scope guard` 在 C++ 是資源清理，不是範圍控制
+2. **它替掉了哪一段** —— 替不掉就別用，直接寫中文更誠實
+
+階段 1 實際用上、確認正確的：`impact analysis`／`syntactic vs semantic`／
+`spot check` vs `full verification`／`dead code elimination`／`mutation testing`／
+`mutant`／`kill`／`scope creep`／`Definition of Done`。
