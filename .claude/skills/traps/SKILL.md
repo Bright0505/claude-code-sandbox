@@ -1,6 +1,6 @@
 ---
 name: traps
-description: 陷阱 — 工具行為很怪、或「看起來成功」但可疑時的診斷法。分辨 transport failure 與 endpoint unreachable、排除 false negative、定位錯誤發生在哪一層、output interleaving、proxy metric 的 calibration。當一個操作失敗、輸出反直覺、系統提示某檔案被改動、或「看起來成功」但心裡不踏實時使用。
+description: 陷阱 — 工具行為很怪、或「看起來成功」但可疑時的診斷法。分辨 transport failure 與 endpoint unreachable、排除 false negative、定位錯誤發生在哪一層、output interleaving、proxy metric validation。當一個操作失敗、輸出反直覺、系統提示某檔案被改動、或「看起來成功」但心裡不踏實時使用。
 ---
 
 # 陷阱
@@ -64,7 +64,7 @@ Harness 偵測到檔案內容變化就會提醒，但變化的來源不只有「
 
 ---
 
-## 6. 用代理指標量測時：先做 instrument calibration
+## 6. 用代理指標量測時：proxy metric validation
 
 無法直接觀測目標時會改用 proxy metric（用流量數代替呼叫數、用日誌行數代替事件數）。
 **代理指標與被測對象的對應關係必須先驗證**，否則後續每一個結論都建立在錯誤的比例上，

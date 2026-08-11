@@ -44,6 +44,9 @@ unreachable，而它們**不會主動報錯**。改完掃一次該檔頂部，�
 最可靠的 mutant 不是手寫的變體，是**真正的舊版**：
 
 ```bash
+# ⚠️ 前置：改動必須已 commit（或 stash）。工作區還有未 commit 的修改時，
+#    下面第一行會直接覆蓋掉它，而還原指令只會還原到 HEAD ——
+#    正在寫的東西會靜默消失，且測試停在紅燈。
 git checkout <base> -- <檔案>   # 舊版即 mutant
 # 跑新測試 → 應該全紅
 git checkout HEAD -- <檔案>     # 還原 → 應該全綠

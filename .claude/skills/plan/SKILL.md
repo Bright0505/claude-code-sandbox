@@ -29,7 +29,7 @@ description: 規劃一個任務 — 動手前四步（scope definition／locate�
 **實際找出目標在哪，附證據。禁止用猜的檔名開始工作。**
 
 1. **找到程式碼**：列出檔案與行號
-2. **prior art search**：用檔名／功能名 grep `docs/KNOWN-ISSUES.md`（做法見 `record` §1）。
+2. **回查事故紀錄**：用檔名／功能名 grep `docs/KNOWN-ISSUES.md`（做法見 `record` §1）。
    **有命中就要在計畫裡寫明怎麼避開** —— 這是「修 A 壞 B」的主要防線
 
 定位不到目標時**說出來並問**，不要挑一個最像的開始改。

@@ -42,7 +42,7 @@
 | C1 | `.claude/skills/code/SKILL.md` | 重寫：5 則案例 → 5 個檢查點（階段 1 pilot） |
 | C2 | `docs/tasks/README.md` | 新增：任務索引 |
 | C3 | `docs/KNOWN-ISSUES.md` | 新增：事故紀錄載體 + 首批 2 則（K-1／K-2） |
-| C4 | `.claude/skills/traps/SKILL.md` | 重寫：5 則案例 → 6 個判準（新增 §6 proxy metric calibration） |
+| C4 | `.claude/skills/traps/SKILL.md` | 重寫：5 則案例 → 6 個判準（新增 §6 proxy metric validation） |
 | C5 | `.claude/skills/verify/SKILL.md` | 重寫：移除實例，5 個時機 |
 | C6 | `.claude/skills/deliver/SKILL.md` | 重寫：移除實例，5 個時機 + 保留有增值的 checklist |
 | C7 | `.claude/skills/record/SKILL.md` | 精簡：抽掉 D1／D6／D7 的討論轉述只留結論與指標，6 個時機 |
@@ -72,8 +72,11 @@
 **刻意移除 1 處**：舊 §5 末尾指向 `docs/KNOWN-ISSUES.md 的具體案例慣例`。
 記錄格式是 `record` skill 的職責，兩處都寫會漂移（`CLAUDE.md` 開頭已定此原則）。
 
-**新增 2 處**：§4 的指令改為可直接複製的 code block；末尾補「收尾：clean code」
-checklist（`traps`／`deliver` 已有此慣例，`code` 原本缺）。
+**新增 2 處**：§4 的指令改為可直接複製的 code block；~~末尾補「收尾：clean code」
+checklist~~ → **後者已於同日刪除**（純複述，見問題紀錄第 2 列、K-2）。
+
+⚠️ §4 那個 code block 後來也被發現缺前置條件（會摧毀未 commit 的工作），
+已於 code review 後補上（見問題紀錄倒數第 3 列、K-3）。
 
 ## 回退方式
 
@@ -88,7 +91,6 @@ checklist（`traps`／`deliver` 已有此慣例，`code` 原本缺）。
 | 2026-08-11 | C1 修正：術語誤用 + 刪除複述型 checklist | `758fc99` | 78 → 74 行。`scope guard`／`clean code`／`source of truth` 三個誤用或不精準的詞替換完畢，grep 零命中；9 條判準複驗仍全數存在 |
 | 2026-08-11 | C1 定稿：移除實例、統一句型、description 術語化 | （見分支）| 74 → 69 行。三項使用者決定全部落地：①`description` 改用 `refactor`／`call site`／`pre-existing defect` 等術語 ②實例全刪（`grep "實例\|handler\|dict\|序列化"` **零命中**，skill 已完全中性）③五個標題統一為「中文時機：術語」。判準複驗全數存在 |
 | 2026-08-11 | C2 `docs/tasks/README.md` | （見分支）| 索引建立，此前 `docs/tasks/` 不存在 —— `plan`／`record` 兩個 skill 都依賴它 |
-
 | 2026-08-11 | C3 建立 `docs/KNOWN-ISSUES.md` | （見分支）| 首批 2 則：K-1 術語誤用、K-2 複述型 checklist。兩則都是**這批文件自己的失效形態**，而階段 2 正要重做同一件事 —— 符合「下一個碰到這塊的人不知道會不會出事」 |
 | 2026-08-11 | C4–C8 五個 skill 收斂 | （見分支）| skill 合計 **908 → 710 行**。`grep "實例："` 零命中、`grep "scope guard\|clean code"` 零命中。7 個跨檔章節引用逐條驗證全部指向存在的章節 |
 | 2026-08-11 | C9 `CLAUDE.md` | （見分支）| 141 → 157 行（**唯一變長的檔案**）。術語化四步與 effort sizing，並新增「文件規範」章節把本次三條規則升為常駐 —— 沒有它，這些規則只存在於這份計畫檔，下次寫 skill 的人不會知道 |
@@ -97,7 +99,7 @@ checklist（`traps`／`deliver` 已有此慣例，`code` 原本缺）。
 
 | skill | 行數 | 主要動作 |
 |---|---|---|
-| `traps` | 94 → 78 | 5 則案例 → 6 個判準；**新增 §6 proxy metric calibration**（本次 open-webui 量測誤判的萃取，寫成判準非案例）|
+| `traps` | 94 → 78 | 5 則案例 → 6 個判準；**新增 §6 proxy metric validation**（本次 open-webui 量測誤判的萃取，寫成判準非案例）|
 | `verify` | 93 → 75 | 移除 2 則實例；「沒紅過不算測試」的四步保留並改為 code block |
 | `deliver` | 143 → 95 | 移除 2 則實例；checklist **保留**（跨 §4／§5，且「無建置產物殘留」「對話會被 compact」正文未講，有增值）|
 | `record` | 271 → 210 | 抽掉 D1／D6／D7 的討論轉述只留結論與指標。**最長且最難壓** —— 內容是 spec 不是案例，欄位／狀態／歸檔資格逐項驗證全數保留 |
@@ -108,9 +110,12 @@ checklist（`traps`／`deliver` 已有此慣例，`code` 原本缺）。
 - **收斂的槓桿是「時間軸」不是「刪字」**：舊版 5 節是 5 個平行案例，
   新版發現它們其實是同一條流程上的 5 個時點（估範圍 → 套用 → 改完 → 驗證 → 全程）。
   一旦排成時間軸，每節只需要一句話定位，解釋自然變短
-- **工程術語是壓縮**：`dead code elimination`／`mutation`／`scope guard`／`clean code`
-  各自替掉一整段中文描述，且是這個領域的共同語言
-- **實例壓成一行引言仍有效**：保留「為什麼這條有用」，但不再佔篇幅主體
+- ~~**工程術語是壓縮**：`dead code elimination`／`mutation`／`scope guard`／`clean code`
+  各自替掉一整段中文描述~~ → **已推翻（同日）**：`scope guard` 與 `clean code`
+  是誤用（見問題紀錄第 1 列、K-1）。**原則成立但這兩個例子是錯的** ——
+  正確的判準是「該詞的既定含義」+「它替掉了哪一段」，不是「看起來像術語」
+- ~~**實例壓成一行引言仍有效**~~ → **已推翻（同日，使用者決定）**：實例全部移除，
+  skill 保持中性（見定稿的三條格式規則第 1 條）
 - 行數只掉 22%，但形狀完全變了 —— **再次確認行數不適合當驗收判準**（D6）
 
 ## 問題紀錄
@@ -120,7 +125,9 @@ checklist（`traps`／`deliver` 已有此慣例，`code` 原本缺）。
 | 2026-08-11 | **術語誤用**：`scope guard`（實為 C++ RAII idiom）拿來指範圍控制、`clean code`（實為命名／函式大小／SRP 的品質原則）拿來當收尾 checklist 的標題 | 把「用術語」誤解成「換上英文詞讓文字變短」，沒有回頭確認該詞的既定含義 | 全部替換為指向正確概念的術語：`scope creep`、`Definition of Done`、`impact analysis`、`kill the mutant`、`syntactic/semantic`。判準改為**資訊密度**（見下） | ⏳ 見下方「該升級的」 |
 | 2026-08-11 | 收尾 checklist 三條全是 §2／§3／§5 的複述 | 沿用 `traps`／`deliver` 有 checklist 的慣例，但沒問「這個 checklist 有沒有增值」 | 整段刪除。`traps`／`deliver` 的 checklist 可留，是因為它們跨小節或補充正文未講的（例如 submodule dirty 的紀錄要求）| ⏳ 見下方「該升級的」 |
 | 2026-08-11 | `docs/KNOWN-ISSUES.md` 不存在，但 `record`／`plan` skill 與 `CLAUDE.md` 都引用它 | 專案落地時未建立 | 階段 2 已建立（C3），首批即上方兩則 | ✅ K-1／K-2 |
-| 2026-08-11 | 驗收腳本用 `grep -c "^[0-9]\."` 數禁令條目，回報 9 條（實際 10 條）| pattern 匹配不到兩位數的「10.」 | 逐條列出核對，確認 10 條完整。**這正是 `traps` §2 講的 false negative —— 而且發生在驗證工具本身** | 未升級：屬一次性的 pattern 疏失，非會復發的形態 |
+| 2026-08-11 | 驗收腳本用 `grep -c "^[0-9]\."` 數禁令條目，回報 9 條（實際 10 條）；另一次 shell 迴圈變數未展開回報全 0 | pattern 匹配不到兩位數的「10.」 | 逐條列出核對確認完整。**兩次都是 `traps` §2 的 false negative，而且發生在驗證工具本身** | 併入 K-4（驗收方法的系統性缺陷）|
+| 2026-08-11 | **獨立 code review 找到 11 個問題，我自己的三輪驗收全是綠燈** —— 1 高危（mutation 指令會摧毀未 commit 的工作）、6 medium | 見 K-3（去實例化刪掉方法與限定條件）與 K-4（grep 式驗收的結構性盲點）| 高危與 medium 全部修正；`CLAUDE.md` 文件規範新增第 4 條 | ✅ K-3／K-4 |
+| 2026-08-11 | `CLAUDE.md` 引用 `（K-1）`／`（K-2）`，但它會被當 submodule 散佈到其他專案，那裡的 K-1 是別的東西 | 忘記 `CLAUDE.md` 是跨專案共用的，違反 README「刻意不包含專案特定資訊」與本檔驗收條件 2 | 移除 ID 引用，改為純描述 | 未升級：與 K-1 同源（引用了不該引用的東西），且已由驗收條件 2 涵蓋 |
 
 ### 案例的去處（階段 2 定案）
 
