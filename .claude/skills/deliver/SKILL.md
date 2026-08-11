@@ -11,7 +11,7 @@ description: 交付 — commit、branch、push、PR、submodule 的操作規範�
 
 ## 1. 發現規範與既有實踐不一致時：policy over convention
 
-歷史 commit 違反禁令（例如直接上 `main`），**不構成核准的先例** ——
+歷史 commit 違反禁令（直接上主幹、混合不同性質的改動），**不構成核准的先例** ——
 git log 記錄的是「當時發生過什麼」，不是「規範允許什麼」。兩者容易混淆，
 因為都被說成「這個 repo 一直是這樣做」。
 

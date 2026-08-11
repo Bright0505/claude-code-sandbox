@@ -60,13 +60,14 @@ git checkout HEAD -- <檔案>     # 還原 → 應該全綠
 
 ## 5. 全程：scope creep 防線
 
-改一個地方時順手發現的 pre-existing defect，判準只有一條：
-**它會不會擋住「這次改動」的 Definition of Done？**
+改一個地方時順手發現的 pre-existing defect，判準是
+**它會不會擋住「這次改動」的 Definition of Done**，以及**修它要付多少**：
 
 | 情況 | 動作 |
 |---|---|
-| 擋住 DoD | 這次修 |
-| 不擋 | 只記錄，不動手 |
+| 不擋 DoD | **只記錄，不動手** |
+| 擋住 DoD，修它在原範圍內 | 修，並在回報明說「不修無法驗收」 |
+| 擋住 DoD，但修它會顯著擴大範圍 | **停下來等指示**（判準展開見 `plan` §0）|
 
 是不是這次的 regression，用 `git show <base>:<檔案>` 查證，不要憑感覺。
 不擋 DoD 卻順手修下去，就是 scope creep 在無聲發生。
