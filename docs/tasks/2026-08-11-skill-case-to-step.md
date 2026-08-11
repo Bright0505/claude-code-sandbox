@@ -1,7 +1,7 @@
 # skill 收斂：案例集 → 步驟
 
-狀態：進行中
-強度：L3（分階段，階段 1 為試點）
+狀態：已完成
+強度：L3（分兩階段，階段 1 為 pilot）
 日期：2026-08-11
 
 ## 目標
@@ -39,9 +39,15 @@
 
 | ID | 檔案 | 變更性質 |
 |---|---|---|
-| C1 | `.claude/skills/code/SKILL.md` | 重寫：5 則案例 → 5 個檢查點（階段 1） |
+| C1 | `.claude/skills/code/SKILL.md` | 重寫：5 則案例 → 5 個檢查點（階段 1 pilot） |
 | C2 | `docs/tasks/README.md` | 新增：任務索引 |
-| C3 | 其餘五個 skill | 階段 2，待階段 1 驗收後 |
+| C3 | `docs/KNOWN-ISSUES.md` | 新增：事故紀錄載體 + 首批 2 則（K-1／K-2） |
+| C4 | `.claude/skills/traps/SKILL.md` | 重寫：5 則案例 → 6 個判準（新增 §6 proxy metric calibration） |
+| C5 | `.claude/skills/verify/SKILL.md` | 重寫：移除實例，5 個時機 |
+| C6 | `.claude/skills/deliver/SKILL.md` | 重寫：移除實例，5 個時機 + 保留有增值的 checklist |
+| C7 | `.claude/skills/record/SKILL.md` | 精簡：抽掉 D1／D6／D7 的討論轉述只留結論與指標，6 個時機 |
+| C8 | `.claude/skills/plan/SKILL.md` | 精簡：四步術語化，L3 段落壓縮 |
+| C9 | `CLAUDE.md` | 術語化 + **新增「文件規範」章節**（把本次確立的三條規則升為常駐規則） |
 
 ## 驗證步驟
 
@@ -83,6 +89,20 @@ checklist（`traps`／`deliver` 已有此慣例，`code` 原本缺）。
 | 2026-08-11 | C1 定稿：移除實例、統一句型、description 術語化 | （見分支）| 74 → 69 行。三項使用者決定全部落地：①`description` 改用 `refactor`／`call site`／`pre-existing defect` 等術語 ②實例全刪（`grep "實例\|handler\|dict\|序列化"` **零命中**，skill 已完全中性）③五個標題統一為「中文時機：術語」。判準複驗全數存在 |
 | 2026-08-11 | C2 `docs/tasks/README.md` | （見分支）| 索引建立，此前 `docs/tasks/` 不存在 —— `plan`／`record` 兩個 skill 都依賴它 |
 
+| 2026-08-11 | C3 建立 `docs/KNOWN-ISSUES.md` | （見分支）| 首批 2 則：K-1 術語誤用、K-2 複述型 checklist。兩則都是**這批文件自己的失效形態**，而階段 2 正要重做同一件事 —— 符合「下一個碰到這塊的人不知道會不會出事」 |
+| 2026-08-11 | C4–C8 五個 skill 收斂 | （見分支）| skill 合計 **908 → 710 行**。`grep "實例："` 零命中、`grep "scope guard\|clean code"` 零命中。7 個跨檔章節引用逐條驗證全部指向存在的章節 |
+| 2026-08-11 | C9 `CLAUDE.md` | （見分支）| 141 → 157 行（**唯一變長的檔案**）。術語化四步與 effort sizing，並新增「文件規範」章節把本次三條規則升為常駐 —— 沒有它，這些規則只存在於這份計畫檔，下次寫 skill 的人不會知道 |
+
+### 階段 2 的收斂結果
+
+| skill | 行數 | 主要動作 |
+|---|---|---|
+| `traps` | 94 → 78 | 5 則案例 → 6 個判準；**新增 §6 proxy metric calibration**（本次 open-webui 量測誤判的萃取，寫成判準非案例）|
+| `verify` | 93 → 75 | 移除 2 則實例；「沒紅過不算測試」的四步保留並改為 code block |
+| `deliver` | 143 → 95 | 移除 2 則實例；checklist **保留**（跨 §4／§5，且「無建置產物殘留」「對話會被 compact」正文未講，有增值）|
+| `record` | 271 → 210 | 抽掉 D1／D6／D7 的討論轉述只留結論與指標。**最長且最難壓** —— 內容是 spec 不是案例，欄位／狀態／歸檔資格逐項驗證全數保留 |
+| `plan` | 207 → 183 | 四步術語化；壓縮幅度最小，因為它本來就是步驟形式 |
+
 ### 階段 1 的觀察（供階段 2 參考）
 
 - **收斂的槓桿是「時間軸」不是「刪字」**：舊版 5 節是 5 個平行案例，
@@ -99,12 +119,17 @@ checklist（`traps`／`deliver` 已有此慣例，`code` 原本缺）。
 |---|---|---|---|---|
 | 2026-08-11 | **術語誤用**：`scope guard`（實為 C++ RAII idiom）拿來指範圍控制、`clean code`（實為命名／函式大小／SRP 的品質原則）拿來當收尾 checklist 的標題 | 把「用術語」誤解成「換上英文詞讓文字變短」，沒有回頭確認該詞的既定含義 | 全部替換為指向正確概念的術語：`scope creep`、`Definition of Done`、`impact analysis`、`kill the mutant`、`syntactic/semantic`。判準改為**資訊密度**（見下） | ⏳ 見下方「該升級的」 |
 | 2026-08-11 | 收尾 checklist 三條全是 §2／§3／§5 的複述 | 沿用 `traps`／`deliver` 有 checklist 的慣例，但沒問「這個 checklist 有沒有增值」 | 整段刪除。`traps`／`deliver` 的 checklist 可留，是因為它們跨小節或補充正文未講的（例如 submodule dirty 的紀錄要求）| ⏳ 見下方「該升級的」 |
-| 2026-08-11 | `docs/KNOWN-ISSUES.md` 不存在，但 `record`／`plan` skill 與 `CLAUDE.md` 都引用它 | 專案落地時未建立 | 階段 1 未處理 —— 建立它屬於另一件事（需要真實條目才有意義），不塞進這次範圍 | 尚無此檔可升級 |
+| 2026-08-11 | `docs/KNOWN-ISSUES.md` 不存在，但 `record`／`plan` skill 與 `CLAUDE.md` 都引用它 | 專案落地時未建立 | 階段 2 已建立（C3），首批即上方兩則 | ✅ K-1／K-2 |
+| 2026-08-11 | 驗收腳本用 `grep -c "^[0-9]\."` 數禁令條目，回報 9 條（實際 10 條）| pattern 匹配不到兩位數的「10.」 | 逐條列出核對，確認 10 條完整。**這正是 `traps` §2 講的 false negative —— 而且發生在驗證工具本身** | 未升級：屬一次性的 pattern 疏失，非會復發的形態 |
 
-### 該升級到 KNOWN-ISSUES 的（待該檔建立後）
+### 案例的去處（階段 2 定案）
 
-前兩則符合「下一個碰到這塊的人，不知道會不會出事」的標準 —— 它們是**這批文件本身
-的失效形態**，而階段 2 還要對五個 skill 重做同一件事，很可能再踩。
+原以為 `traps` 的案例要「搬家」到 KNOWN-ISSUES，實際處理後發現**不該搬**：
+那五則都是「判準的佐證」，不是特定檔案的缺陷 —— 抽出判準後案例沒有獨立價值，
+硬塞進 KNOWN-ISSUES 只會製造檢索雜訊（`record` §2 明文反對）。
+
+**判準**：案例要進 KNOWN-ISSUES，必須有具體的 `影響範圍`（檔名／模組名）可供 grep。
+沒有的，就是純粹的診斷心態，該留在 skill 裡當判準。
 
 ### 定稿的三條格式規則（階段 2 直接套用）
 
