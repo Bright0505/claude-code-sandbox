@@ -1,100 +1,73 @@
 ---
 name: code
-description: 寫程式碼 — 改動既有程式碼呼叫方式時的具體做法。展開 CLAUDE.md 鐵則 1-3(一手來源優於二手、先量測不要先推論、修之前先復現)在「動手寫程式碼」這個場景下的落地。當要改既有函式/類別的呼叫方式、跨多個檔案套用同一種改法、或改動觸發了看似不相關的既有問題時使用。
+description: 寫程式碼 — 修改既有程式碼的五個檢查點：impact analysis、syntactic vs semantic equivalence、dead code elimination、mutation testing、scope creep 防線。展開 CLAUDE.md 鐵則 1-3 在「動手寫程式碼」這個場景的落地。當要 refactor 既有函式/類別的 API 或呼叫方式、跨多個 call site 套用同一種改法、或改動觸發了看似不相關的 pre-existing defect 時使用。
 ---
 
 # 寫程式碼
 
-`CLAUDE.md` 已定義相關鐵則,`verify` skill 講的是「怎麼證明改對了」。
-本 skill 補的是再往前一步:**動手改之前怎麼確認改法本身是對的,以及
-改的過程中怎麼守住範圍**。
+`CLAUDE.md` 已定義鐵則 1-3。`verify` 講「怎麼證明改對了」，
+本 skill 講**動手前怎麼確認改法是對的，以及過程中怎麼守住範圍**。
+
+五個檢查點，按時間順序排。
 
 ---
 
-## 改第三方套件的呼叫方式前,先讀它的原始碼,不要只讀說明文件推論
+## 1. 估算範圍時：impact analysis
 
-官方 release note / migration guide 講的是「應該長什麼樣」,不是「實際上
-接受什麼」。兩者之間的落差,只有讀原始碼才看得出來。
+Spec（migration guide、release note、型別標註）宣告的是**契約**，
+implementation 才是**實際行為**。兩者的落差直接決定 blast radius。
 
-實例:mcp SDK 從 v1 升級到 v2,官方文件說 handler 要回傳 `CallToolResult`
-這種 pydantic 物件。如果照文件字面理解去規劃,意味著整個 `tools/` 底下
-回傳裸 `dict` 的邏輯層都要跟著重寫,範圍會從 3 個檔案暴增到 6+ 個檔案,
-強度也會從 L2 逼近 L3。**實際去讀 SDK 原始碼**(`mcp/server/runner.py`
-的 `_dump_result` 函式)才發現它明確接受 `BaseModel`、`dict`、`None`
-三種回傳型別——裸 dict 完全可以用,範圍因此收斂回 3 個檔案。
-
-判準:規劃改動範圍时,凡是「這個第三方 API 到底接受什麼」這種會直接
-影響範圍大小的關鍵假設,花時間讀一次原始碼再定案,不要憑文件字面推論
-就先估一個範圍,之後再被迫重新估。
+凡是**會讓範圍變動一倍以上**的關鍵假設，讀一次實作再定案，
+不要憑 spec 字面估一個範圍再被迫重估。
 
 ---
 
-## 同一種改法套用到多個檔案,還是要逐一驗證,不能因為前一個過了就假設其他也過
+## 2. 套用到多處時：syntactic similarity ≠ semantic equivalence
 
-「機械式重複同一個改法」很容易讓人只驗證第一個檔案,後面幾個看起來
-結構一樣就跳過。**結構一樣不代表內容一樣**,尤其是同一個模式在不同地方
-可能各自帶了只有那個檔案才有的小變體。
-
-實例:三個入口檔案(`server.py`、`http_server.py`、`protocol/base_server.py`)
-都要把 handler 從 decorator 註冊改成建構子 callback,表面上是同一種
-機械式改法。逐一驗證時發現前兩個檔案的 `call_tool` handler 本來就回傳
-`{"content": [...]}` 這種 dict 形狀,直接套用改法就過;但
-`http_server.py` 那份是獨立寫的重複邏輯,原本回傳裸 `list`——同一種
-decorator→callback 的改法套用上去,不會自動修正這個型別差異,新版
-API 的序列化層(只接受 `BaseModel`/`dict`/`None`)會直接拒絕裸 list。
-如果因為前兩個檔案驗證過就跳過第三個的獨立驗證,這個問題會一路帶到
-上線才被發現。
-
-判準:「同一個模式重複 N 次」只降低了猜測改法對不對的成本,不能拿來
-跳過逐一驗證——每個檔案都要真的跑一次,不是看起來像就當作過了。
+同一種改法套 N 個 call site，只降低了「猜改法對不對」的成本，
+**不能把 full verification 降級成 spot check** —— 長得一樣的地方，
+可能各自帶著只有那裡才有的語意差異。
 
 ---
 
-## 改呼叫方式後,往下清掉因此變成死碼的 import/型別
+## 3. 改完後：dead code elimination
 
-改動函式簽名或呼叫方式,經常會讓原本支撐舊寫法的型別匯入變成用不到,
-但這些匯入不會主動報錯提醒你,需要主動回頭檢查。
-
-實例:三個入口檔案把 handler 從 `async def list_tools() -> List[Tool]`
-這種帶完整型別標註的 decorator 函式,改成 `async def on_list_tools(ctx,
-params) -> dict` 之後,`List`、`Tool`、`Prompt`、`Resource` 這些型別匯入
-全部變成死碼,`pyproject.toml` 裡 `ruff` 的 `select = [..., "F", ...]`
-本來就會抓這個,但如果沒有主動跑一次檢查,死 import 會先進 commit。
-
-判準:改完一個函式的簽名或呼叫方式,回頭看一次它所在檔案最上面的
-import 區塊,而不是只看函式本體改完就結束。
+修改 signature 或呼叫方式，會讓支撐舊寫法的 import／型別／分支變成
+unreachable，而它們**不會主動報錯**。改完掃一次該檔頂部，交給 linter 確認 ——
+規則通常本來就開著，但沒跑就會進 commit。
 
 ---
 
-## 紅轉綠驗證要真的換回舊程式碼,不要憑印象猜舊行為長怎樣
+## 4. 驗證時：mutation testing
 
-`verify` skill 講「新測試要故意弄壞一次確認轉紅」,在「改既有程式碼」
-這個場景下,最可靠的弄壞方式不是憑印象寫一個假設會失敗的變體,是
-**真的把檔案換回改動前的版本,跑一次新測試**。
+`verify` 要求新測試要故意弄壞一次確認轉紅。改既有程式碼時，
+最可靠的 mutant 不是手寫的變體，是**真正的舊版**：
 
-實例:`git checkout main -- src/server.py src/http_server.py
-src/protocol/base_server.py` 把三個入口檔案換回遷移前的舊版,在新版
-SDK 環境下跑新寫的 7 則測試,全部因為 `AttributeError: 'Server' object
-has no attribute 'list_tools'` 失敗(確認失敗原因跟預期的一致,不是隨便
-哪裡壞了),再 `git checkout HEAD -- <同樣三個檔案>` 換回新版,確認全綠。
-比起憑印象寫「假設這樣會失敗」的測試,這個方法**不會失真**——舊版程式碼
-是真的舊版,不是回憶或重新腦補出來的近似版本。
+```bash
+# ⚠️ 前置：改動必須已 commit（或 stash）。工作區還有未 commit 的修改時，
+#    下面第一行會直接覆蓋掉它，而還原指令只會還原到 HEAD ——
+#    正在寫的東西會靜默消失，且測試停在紅燈。
+git checkout <base> -- <檔案>   # 舊版即 mutant
+# 跑新測試 → 應該全紅
+git checkout HEAD -- <檔案>     # 還原 → 應該全綠
+```
+
+手寫的「假設會失敗」變體是腦補出來的近似版，會失真。
+**確認 mutant 是為了正確的理由被 killed** —— 失敗訊息要對得上預期，
+不是隨便哪裡壞了也算數。
 
 ---
 
-## 改動過程中撞到的既有問題,分清楚「擋住這次驗收」跟「發現但不擋」
+## 5. 全程：scope creep 防線
 
-改一個函式時,常常會順手發現旁邊還有一個不相關的既有問題。這兩種要
-用不同方式處理,不要一律修或一律留。
+改一個地方時順手發現的 pre-existing defect，判準是
+**它會不會擋住「這次改動」的 Definition of Done**，以及**修它要付多少**：
 
-判準:**這個問題會不會讓「這次改動本身」過不了驗收**——會,才在這次
-改;不會,只記錄,不動手。
+| 情況 | 動作 |
+|---|---|
+| 不擋 DoD | **只記錄，不動手** |
+| 擋住 DoD，修它在原範圍內 | 修，並在回報明說「不修無法驗收」 |
+| 擋住 DoD，但修它會顯著擴大範圍 | **停下來等指示**（判準展開見 `plan` §0）|
 
-實例:`http_server.py` 的 `call_tool` handler 原本回傳裸 `list`,v2 的
-序列化層直接拒絕——這個**必須修**,不修這次遷移就無法完成(過不了
-「三個入口都能建構並回應」這個驗收標準)。同一個函式裡,呼叫不存在的
-工具名稱時會回傳 `{"content": [None]}` 而不是有意義的錯誤訊息——這是
-遷移前就存在的獨立毛病(`git show main:<檔案>` 查證過,不是這次造成的),
-不影響「三個入口都能建構並回應」這個驗收標準,所以只記錄(見
-`docs/KNOWN-ISSUES.md` 的具體案例慣例)、不在這次動手修,避免在跟
-委託範圍不直接相關的地方繼續往下修,不知不覺把改動範圍撐大。
+是不是這次的 regression，用 `git show <base>:<檔案>` 查證，不要憑感覺。
+不擋 DoD 卻順手修下去，就是 scope creep 在無聲發生。
