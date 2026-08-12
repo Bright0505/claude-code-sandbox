@@ -7,11 +7,12 @@
 ```
 ONBOARDING.md                      開發規範 — 新人手冊（給人讀一次）
 CLAUDE.md                          開發規範 — 執行版（給 Claude 常駐）
+sandbox.sh                         啟動器（host 端）：自動偵測專案網路後啟動 sandbox
 Dockerfile.claude                  Claude Code sandbox image
 docker-compose.claude.yml          啟動 sandbox 的主要 compose 檔
 docker-compose.claude.network.yml  選用 overlay：讓 sandbox 加入專案自己的網路
 scripts/init-firewall.sh           容器啟動時設定的網路白名單
-scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使用者
+scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使用者，並印出網路狀態
 .env.claude.example                ANTHROPIC_API_KEY 範本
 .claude-config/                    (執行時產生) 專案專屬的 Claude Code 設定/登入狀態
 ```
@@ -53,27 +54,48 @@ docker compose -f docker-compose.claude.yml run --rm claude-sandbox claude
 
 ## 連接專案自己的服務(跑測試)
 
-如果專案已經用自己的 `docker-compose.yml` 啟動了 API、DB 等服務,想讓 sandbox 連過去執行測試,可以用 `docker-compose.claude.network.yml` 這個選用 overlay:
+如果專案已經用自己的 `docker-compose.yml` 啟動了 API、DB 等服務，想讓 sandbox 連過去執行測試，用 `sandbox.sh` 啟動：
 
-1. 專案的 `docker-compose.yml` 把網路取一個固定名稱,不依賴 compose 專案/目錄名稱:
-   ```yaml
-   networks:
-     default:
-       name: app-net
-   ```
-2. 啟動專案本身：
-   ```bash
-   docker compose -f docker-compose.yml up -d
-   ```
-3. 啟動 sandbox 並加入同一個網路：
-   ```bash
-   docker compose -f docker-compose.claude.yml \
-                  -f docker-compose.claude.network.yml \
-                  run --rm claude-sandbox bash
-   ```
-   容器內可以用服務名稱當 hostname,例如 `curl http://api:3000/health`。
+```bash
+docker compose -f docker-compose.yml up -d   # 專案服務先起來
+./sandbox.sh                                 # 或 ./sandbox.sh bash 取得 shell
+```
 
-網路名稱預設是 `app-net`,可用 `APP_NETWORK_NAME=my-net` 覆寫。`init-firewall.sh` 只會放行 sandbox 實際加入的網路子網段,不會因此打開整個私有網段(RFC1918),對外連線的白名單規則不受影響。
+它做三件手動下指令時最容易漏掉的事：推導 `/workspace` 要掛哪個目錄（submodule 情境自動取主專案根目錄）、照 compose 打在網路上的 `com.docker.compose.project` label 反查專案網路、以及**接不上時直接說下一步做什麼**（服務沒起來？project 名跟目錄名不同？）。
+
+**不需要為此修改專案自己的 `docker-compose.yml`** —— 網路名靠 label 反查，不必取固定名稱。
+
+推導結果一律印出來，每一項都可以用環境變數覆寫：
+
+| 變數 | 用途 |
+|---|---|
+| `WORKSPACE_DIR` | 掛進 `/workspace` 的目錄 |
+| `APP_NETWORK_NAME` | 直接指定網路名，跳過自動偵測（網路不是 compose 建的時候用）|
+| `APP_COMPOSE_PROJECT` | 專案的 compose project 名，供自動偵測使用。專案 compose 有 `name:` 或設了 `COMPOSE_PROJECT_NAME` 時會跟目錄名不同 |
+
+### 容器內要用服務名 + **內部** port
+
+容器內的 `localhost` 指的是容器自己，不是 host，所以 host 上發布的 port 一律連不到。要用服務名，而且 port 要用容器內部那個：
+
+| 在 host | 在容器內 |
+|---|---|
+| `localhost:3000` | `web:8080` |
+| `localhost:5432` | `postgres:5432` |
+
+### 手動疊 overlay（備援）
+
+`sandbox.sh` 只是把下面這串包起來，需要時可以直接下：
+
+```bash
+WORKSPACE_DIR=$(pwd) APP_NETWORK_NAME=<網路名> docker compose \
+    -f docker-compose.claude.yml \
+    -f docker-compose.claude.network.yml \
+    run --rm claude-sandbox bash
+```
+
+⚠️ **漏掉 overlay 時失敗是靜默的** —— 不會有任何錯誤訊息，只是所有服務名都解析不到（`curl` exit 6），繞過 DNS 直接打 IP 則是逾時（exit 28，封包被 DROP）。這組症狀讀起來像整個環境壞掉，實際發生過的誤判見 `docs/KNOWN-ISSUES.md` **K-5**。從 `sandbox.sh` 啟動時 entrypoint 會印出接上了哪個網路，沒接上也會明講。
+
+`init-firewall.sh` 只會放行 sandbox 實際加入的網路子網段，不會因此打開整個私有網段(RFC1918)，對外連線的白名單規則不受影響。
 
 ## 開發規範
 
@@ -104,7 +126,7 @@ docker compose -f docker-compose.claude.yml run --rm claude-sandbox claude
 
 套用這個 template 的專案，只需要:
 
-1. 保留 `Dockerfile.claude`、`docker-compose.claude.yml`、`docker-compose.claude.network.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
+1. 保留 `sandbox.sh`、`Dockerfile.claude`、`docker-compose.claude.yml`、`docker-compose.claude.network.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
 2. 依專案實際的語言/框架，另外撰寫自己的 `Dockerfile`、`docker-compose.yml`（可選擇性搭配上方「連接專案自己的服務」章節，讓 sandbox 連得到）。
 3. 需要調整白名單網域時，編輯 `scripts/init-firewall.sh` 裡的 `ALLOWED_DOMAINS`。
 4. `CLAUDE.md` 在專案根目錄會被 Claude Code 自動載入；專案特定資訊（架構、路徑、測試指令、事故清單）寫在它下方或另開一份引用。當 submodule 用時見下一節。
@@ -130,7 +152,14 @@ WORKSPACE_DIR=$(pwd) docker compose \
     run --rm claude-sandbox claude
 ```
 
-需要連接主專案自己的服務跑測試時，疊加 `docker-compose.claude.network.yml` 一起使用即可，用法跟上方「連接專案自己的服務」章節相同。
+或者直接用 `sandbox.sh`，它會偵測到自己位在另一個 git 工作區底下，自動把主專案根目錄當成 `WORKSPACE_DIR`：
+
+```bash
+# 在主專案根目錄下執行
+./claude-sandbox/sandbox.sh
+```
+
+需要連接主專案自己的服務跑測試時，`sandbox.sh` 已經包含 overlay，不需要額外做什麼；用法與注意事項見上方「連接專案自己的服務」章節。
 
 **開發規範在 submodule 情境下需要一行引用。** 子目錄的 `CLAUDE.md` 不會被自動載入，所以要在**主專案根目錄的 `CLAUDE.md`** 加：
 
