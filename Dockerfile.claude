@@ -6,7 +6,7 @@ ARG USER_GID=$USER_UID
 
 # System deps:
 # - python3/pip: general scripting/tooling support
-# - git, gh: version control
+# - git, gh: version control (glab is installed separately below)
 # - iptables/ipset/dnsutils: runtime network allowlist (init-firewall.sh)
 # - gosu: drop from root to $USERNAME after firewall setup
 # - ripgrep/jq: faster search/JSON handling for Claude Code itself
@@ -33,6 +33,21 @@ RUN if getent group "$USER_GID" >/dev/null; then \
         useradd --uid "$USER_UID" --gid "$USER_GID" -m -s /bin/bash "$USERNAME"; \
     fi
 
+# GitLab CLI. GitLab publishes no apt repo for glab, and the alternative is
+# piping their install script into a shell - so take the release .deb with the
+# version pinned and the published checksum verified. Its only dependency (git)
+# is already installed above, hence dpkg instead of apt.
+ARG GLAB_VERSION=1.113.0
+RUN arch="$(dpkg --print-architecture)" \
+    && base="https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads" \
+    && curl -fsSL -o /tmp/glab.deb "$base/glab_${GLAB_VERSION}_linux_${arch}.deb" \
+    && curl -fsSL -o /tmp/checksums.txt "$base/checksums.txt" \
+    && grep "  glab_${GLAB_VERSION}_linux_${arch}.deb$" /tmp/checksums.txt \
+        | sed "s|  glab_.*|  /tmp/glab.deb|" | sha256sum -c - \
+    && dpkg -i /tmp/glab.deb \
+    && rm -f /tmp/glab.deb /tmp/checksums.txt \
+    && glab --version
+
 RUN npm install -g @anthropic-ai/claude-code
 
 # Project-scoped config: this directory is bind-mounted from the host project
@@ -46,7 +61,13 @@ RUN chown "$USERNAME:$USERNAME" /workspace
 
 COPY scripts/init-firewall.sh /usr/local/bin/init-firewall.sh
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/entrypoint.sh
+COPY scripts/setup-git-auth.sh /usr/local/bin/setup-git-auth.sh
+# git finds a helper named `sandbox-env` by looking for git-credential-sandbox-env
+# on PATH, which is why the installed name differs from the source name.
+COPY scripts/git-credential-env.sh /usr/local/bin/git-credential-sandbox-env
+COPY scripts/git-forge-lib.sh /usr/local/lib/git-forge-lib.sh
+RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/entrypoint.sh \
+        /usr/local/bin/setup-git-auth.sh /usr/local/bin/git-credential-sandbox-env
 
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["bash"]

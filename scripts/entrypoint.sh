@@ -16,13 +16,28 @@ print_network_summary() {
     fi
 }
 
+# Token-based git auth is a convenience, not a guardrail: if it breaks the
+# container must still start - but loudly, because the failure downstream is a
+# credential prompt or a hang, which reads as a broken environment.
+setup_git_auth() {
+    if ! "$@"; then
+        printf '%s\n' \
+            'sandbox: ⚠️ git 認證設定失敗（原因見上方輸出）。容器照常啟動，' \
+            'sandbox: 但 push 會要求帳號密碼。' >&2
+    fi
+}
+
 # Container starts as root so the firewall can be configured, then drops
 # to the unprivileged $USERNAME for everything else (matches Dockerfile.claude).
+# git auth is configured as that same unprivileged user, so ~/.gitconfig belongs
+# to whoever actually runs git.
 if [ "$(id -u)" = "0" ]; then
     /usr/local/bin/init-firewall.sh
     print_network_summary
+    setup_git_auth gosu claude /usr/local/bin/setup-git-auth.sh
     exec gosu claude "$@"
 fi
 
 print_network_summary
+setup_git_auth /usr/local/bin/setup-git-auth.sh
 exec "$@"

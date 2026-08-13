@@ -13,7 +13,12 @@ docker-compose.claude.yml          啟動 sandbox 的主要 compose 檔
 docker-compose.claude.network.yml  選用 overlay：讓 sandbox 加入專案自己的網路
 scripts/init-firewall.sh           容器啟動時設定的網路白名單
 scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使用者，並印出網路狀態
-.env.claude.example                ANTHROPIC_API_KEY 範本
+scripts/setup-git-auth.sh          啟動時把 .env.claude 的 token 變成可用的 git 設定
+scripts/git-credential-env.sh      git credential helper：只從環境變數回答，token 不落地
+scripts/git-forge-lib.sh           GitHub/GitLab 的 host 與 token 環境變數解讀（三個腳本共用）
+scripts/test-git-auth.sh           上面三支的測試（不需要 docker）
+scripts/test-init-firewall.sh      白名單組成的測試（用 stub 蓋掉 iptables，不動真網路）
+.env.claude.example                ANTHROPIC_API_KEY 與 GitHub/GitLab token 範本
 .claude-config/                    (執行時產生) 專案專屬的 Claude Code 設定/登入狀態
 ```
 
@@ -49,8 +54,57 @@ docker compose -f docker-compose.claude.yml run --rm claude-sandbox claude
 
 - **基底**：`node:24-bookworm-slim`(Node 24 LTS)。Claude Code CLI 本身是 Node 程式,因此不論專案語言是什麼,sandbox 都需要 Node——這跟專案自己的執行環境版本無關。
 - **非 root 使用者**：容器以 `claude`(uid/gid 1000)執行實際指令,只有防火牆設定階段短暫使用 root。
-- **網路白名單**：`init-firewall.sh` 預設擋掉所有對外連線,只放行 Claude Code 實際需要的網域(Anthropic API、`platform.claude.com` 登入/token 交換、GitHub、npm、PyPI 等)。任何未列在白名單的網域一律被擋。
+- **網路白名單**：`init-firewall.sh` 預設擋掉所有對外連線,只放行 Claude Code 實際需要的網域(Anthropic API、`platform.claude.com` 登入/token 交換、GitHub、GitLab、npm、PyPI 等)。任何未列在白名單的網域一律被擋。`.env.claude` 裡設的 `GITLAB_HOST`／`GITHUB_HOST`（自架站台）會自動加進白名單,其他網域用 `EXTRA_ALLOWED_DOMAINS` 追加,兩者都不需要改這個檔案。解析不到的網域會印出警告——否則症狀會是連線逾時,讀起來像服務或憑證壞掉。
 - **不提供 docker socket / Docker-in-Docker**：sandbox 內刻意不能執行 `docker build`/`docker compose up` 之類的指令。掛載 host 的 `docker.sock` 等同給予 host root 權限,會讓前述的防火牆與非 root 隔離全部失去意義。專案自己的容器建置/啟動應該在 sandbox 外(人工或 CI)執行。
+
+## 在容器內 commit / push（GitHub 與 GitLab）
+
+把 token 填進 `.env.claude`，容器內就能直接 `git push`，`gh` 與 `glab` 兩個 CLI 也同時可用：
+
+```bash
+cp .env.claude.example .env.claude    # 填 GITHUB_TOKEN / GITLAB_TOKEN 與身分
+./sandbox.sh
+```
+
+需要的設定只有四項（其餘皆選用，全部見 `.env.claude.example`）：
+
+| 變數 | 用途 |
+|---|---|
+| `GITHUB_TOKEN` | GitHub PAT。classic 要 `repo` scope；fine-grained 要 Contents: Read and write |
+| `GITLAB_TOKEN` | GitLab PAT。要 `write_repository`；要用 `glab` 開 MR 再加 `api` |
+| `GIT_USER_NAME` | commit 的作者名。**兩個都設才生效** |
+| `GIT_USER_EMAIL` | commit 的作者信箱 |
+
+啟動時會印出實際生效的狀態，例如：
+
+```
+sandbox: git 認證 GitHub (github.com)：已載入 token（長度 40，username x-access-token）
+sandbox: git 認證 GitLab (gitlab.com)：未設定 token —— push 會要求帳號密碼
+sandbox: git 身分：Your Name <you@example.com>
+```
+
+**沒設就會明講**，因為「token 沒生效」的下游症狀（跳出帳密提示、或連線逾時）跟環境故障
+長得一樣 —— 同一類誤判的紀錄見 `docs/KNOWN-ISSUES.md` **K-5**。
+
+### 幾個要知道的行為
+
+- **走 HTTPS，不走 SSH。** 防火牆只放行 80/443，容器內連不到 port 22，所以 `git@github.com:...`
+  形式的 remote 會被自動改寫成 `https://github.com/...`（設 `SANDBOX_GIT_REWRITE_SSH=0` 可關掉）
+- **token 不落地。** 憑證由 `git-credential-env.sh` 直接從環境變數回答，不寫
+  `~/.git-credentials`、不寫進 `.gitconfig`；`~/.gitconfig` 本身也在容器內，不會回寫主機
+- **自架站台**只要設 `GITLAB_HOST` / `GITHUB_HOST`（填 host 或完整 URL 都可以），
+  防火牆會自動放行該網域。要放行其他網域用 `EXTRA_ALLOWED_DOMAINS`，不必改 `init-firewall.sh`
+- **自架 GitLab 的 `glab` CLI 需要多一步**：實測 `GITLAB_TOKEN` 只有預設 host（gitlab.com）
+  會被 `glab` 認得，自架站台要在容器內執行 `glab auth login --hostname <host>`。
+  `git push` 不受影響 —— 它走的是 credential helper，跟 `glab` 無關
+- **本體有更新過 image 內容時要重新 build**：`docker compose -f docker-compose.claude.yml build`
+
+改動這些腳本後可以直接驗，不需要 docker：
+
+```bash
+./scripts/test-git-auth.sh        # credential helper 與啟動設定
+./scripts/test-init-firewall.sh   # 白名單組成（iptables 被 stub 蓋掉，不動真網路）
+```
 
 ## 連接專案自己的服務(跑測試)
 
@@ -128,7 +182,7 @@ WORKSPACE_DIR=$(pwd) APP_NETWORK_NAME=<網路名> docker compose \
 
 1. 保留 `sandbox.sh`、`Dockerfile.claude`、`docker-compose.claude.yml`、`docker-compose.claude.network.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
 2. 依專案實際的語言/框架，另外撰寫自己的 `Dockerfile`、`docker-compose.yml`（可選擇性搭配上方「連接專案自己的服務」章節，讓 sandbox 連得到）。
-3. 需要調整白名單網域時，編輯 `scripts/init-firewall.sh` 裡的 `ALLOWED_DOMAINS`。
+3. 需要多放行幾個網域時，先用 `.env.claude` 的 `EXTRA_ALLOWED_DOMAINS`（不用改檔案）；要改動預設清單本身才編輯 `scripts/init-firewall.sh` 裡的 `ALLOWED_DOMAINS`。
 4. `CLAUDE.md` 在專案根目錄會被 Claude Code 自動載入；專案特定資訊（架構、路徑、測試指令、事故清單）寫在它下方或另開一份引用。當 submodule 用時見下一節。
 5. 讓新人先讀一次 `ONBOARDING.md`。它不需要進 Claude 的 context，是純人用文件。
 
@@ -145,7 +199,7 @@ git submodule add git@github.com:Bright0505/claude-code-sandbox.git claude-sandb
 
 ```bash
 # 在主專案根目錄下執行
-cp claude-sandbox/.env.claude.example claude-sandbox/.env.claude   # 填入 ANTHROPIC_API_KEY
+cp claude-sandbox/.env.claude.example claude-sandbox/.env.claude   # 填入 ANTHROPIC_API_KEY／git token
 
 WORKSPACE_DIR=$(pwd) docker compose \
     -f claude-sandbox/docker-compose.claude.yml \
