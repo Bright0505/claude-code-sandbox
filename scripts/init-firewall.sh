@@ -51,13 +51,45 @@ ALLOWED_DOMAINS=(
     raw.githubusercontent.com
     objects.githubusercontent.com
     codeload.github.com
+    gitlab.com
     registry.npmjs.org
     pypi.org
     files.pythonhosted.org
 )
 
+# shellcheck source=./git-forge-lib.sh
+. "${GIT_FORGE_LIB:-/usr/local/lib/git-forge-lib.sh}"
+
+add_domain() {
+    local d existing
+    d="$(forge_normalize_host "$1")"
+    [ -n "$d" ] || return 0
+    for existing in "${ALLOWED_DOMAINS[@]}"; do
+        if [ "$existing" = "$d" ]; then return 0; fi
+    done
+    ALLOWED_DOMAINS+=("$d")
+}
+
+# Self-hosted GitHub Enterprise / GitLab: whatever host the tokens in
+# .env.claude point at has to be reachable, otherwise `git push` fails as a
+# timeout - a symptom that looks nothing like the auth problem it isn't.
+add_domain "$(forge_github_host)"
+add_domain "$(forge_gitlab_host)"
+
+# Escape hatch for anything else the project needs (comma- or space-separated),
+# so reaching one more host doesn't require editing this file.
+for extra in $(printf '%s' "${EXTRA_ALLOWED_DOMAINS:-}" | tr ',' ' '); do
+    add_domain "$extra"
+done
+
 for domain in "${ALLOWED_DOMAINS[@]}"; do
     ips="$(dig +short A "$domain" | grep -E '^[0-9.]+$' || true)"
+    if [ -z "$ips" ]; then
+        # Silence here would surface later as a connection timeout, which is
+        # indistinguishable from a credential or service failure.
+        echo "init-firewall: ⚠️ 無法解析 $domain —— 連到它會逾時（typo？DNS？）"
+        continue
+    fi
     for ip in $ips; do
         ipset add allowed-domains "$ip" 2>/dev/null || true
     done

@@ -507,3 +507,37 @@ sandbox 自己的 `scripts/`（`entrypoint.sh`／`init-firewall.sh` 所在）帶
 被重新提出，所以把「為什麼不做」寫在這裡。
 
 **日期**：2026-08-07
+
+---
+
+## D11 — git 憑證用「讀環境變數的 credential helper」，不用 credential store（已決議）
+
+**問題**：容器內要能用 PAT `git push`，憑證得從某處來。最直覺的做法是
+`git config --global credential.helper store`，把 token 寫進 `~/.git-credentials`。
+
+**決議**：改寫一支 12 行的 credential helper（`scripts/git-credential-env.sh`），
+只從環境變數回答 git 的 `get` 請求，`store`／`erase` 一律不做事。
+
+**為什麼不是 credential store**：
+
+| | credential store | env helper |
+|---|---|---|
+| token 位置 | 明文寫在 `~/.git-credentials` | 只在 process 環境 |
+| 誤提交風險 | 檔案存在就有（`.gitignore` 保護不了 bind mount 之外的複製行為）| 沒有檔案可提交 |
+| 容器重啟後 | 殘留（若家目錄被掛出去就更久）| 隨容器消失 |
+| 多 host | 要各寫一行 | 由 `GITLAB_HOST`／`GITHUB_HOST` 推導 |
+
+決定性的那一格是第二列：`CLAUDE.md` 禁令 4 是「不 commit 機密」，而
+**最可靠的做法是讓機密沒有檔案形態**，不是多加一條 `.gitignore` 規則。
+
+**連帶決定：SSH remote 預設改寫成 HTTPS。** 防火牆只放行 80/443，容器內 port 22
+一定連不到，所以 `git@github.com:…` 的 remote 在這個環境裡不是「另一種選擇」，
+而是**必定逾時**。預設改寫（`SANDBOX_GIT_REWRITE_SSH=0` 可關）比讓使用者自己去發現
+「push 卡住是因為 port 22」便宜得多 —— 後者的症狀跟網路故障一模一樣，
+與 K-5 是同一個形態。
+
+**代價**：多一支要維護的腳本；`git config --global credential.helper` 的值變成一個
+只在本 image 內存在的名字（`sandbox-env`），在容器外的環境沒有意義。
+後者可接受 —— `~/.gitconfig` 本來就在容器內、不回寫主機。
+
+**日期**：2026-08-13
