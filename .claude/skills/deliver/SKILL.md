@@ -85,6 +85,11 @@ review 與 revert 的顆粒度要跟改動一致。
 做不到時檢查**替代路徑**而不是卡住：容器化環境常見的是 bind mount ——
 容器裡的 commit 已真實存在於主機檔案系統，使用者可在主機端用自己的憑證完成 push。
 
+**GitHub／GitLab 連線一律先試 CLI 工具（`gh`／`glab`），不要預設走裸 `git`＋SSH** ——
+沙箱環境的 SSH port 白名單預設關閉，SSH 常連不通，即使目標 repo 是公開的也一樣；
+CLI 工具走 HTTPS／API 認證能繞過這個限制（見 CLAUDE.md 鐵則 8）。SSH 連線失敗
+時不要直接判定「這個 repo 連不到」，先確認是不是這個環境性的限制。
+
 ---
 
 ## 收尾：跨 repo 狀態要交代
