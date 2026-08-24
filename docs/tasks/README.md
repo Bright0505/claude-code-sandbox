@@ -6,6 +6,9 @@
 
 | 日期 | 任務 | 涉及範圍 | 一句話 |
 |---|---|---|---|
-| 2026-08-11 | [skill 收斂：案例集 → 步驟](2026-08-11-skill-case-to-step.md) | `.claude/skills/` 六份 | 讓 skill 成為可執行的步驟，而不是案例的累積；階段 1 以 `code` 試點 |
-| 2026-08-12 | [連接專案服務：從選用 overlay 升為一級功能](2026-08-12-project-network-launcher.md) | `sandbox.sh`、`entrypoint.sh`、`README.md` | 選用機制門檻太高＋失敗無輸出，導致「沒啟用」被誤判成「環境故障」 |
-| 2026-08-13 | [GitHub / GitLab token 認證](2026-08-13-git-forge-token-auth.md) | `Dockerfile.claude`、`scripts/` 五支、`.env.claude.example`、`README.md` | 只靠 `.env.claude` 的 PAT 就能在容器內 commit + push；token 不落地 |
+
+> 空的。這裡放**你的專案**的任務計畫檔。
+>
+> 上游 template 自己的研發紀錄（三份任務檔）不隨產品出貨，
+> 但沒有銷毀 —— 在 `v0.1.0` 之前的 git 歷史裡：
+> `git log --all --diff-filter=D -- docs/tasks/`
