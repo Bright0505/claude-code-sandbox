@@ -8,6 +8,10 @@
 # them - this tests the shipped code, not a copy of its logic.
 #
 #   ./scripts/test-init-firewall.sh
+#
+# 能力邊界：這支在 host（含 macOS／bash 3.2）跑得完，但驗的是 init-firewall.sh 的
+# **邏輯**，不是它在 Linux 上的**行為** —— 網卡列舉、sysfs、iptables 全是 stub。
+# macOS 綠燈不等於容器內會過，容器內那一次不能省。
 set -uo pipefail
 
 unset GITHUB_HOST GH_HOST GITLAB_HOST EXTRA_ALLOWED_DOMAINS
@@ -59,6 +63,17 @@ cat > "$stubs/ip" <<'EOF'
 #!/bin/bash
 echo "2: eth0    inet 172.31.0.2/16 brd 172.31.255.255 scope global eth0"
 EOF
+# init-firewall.sh 用 `find /sys/class/net ... -printf` 列出網卡名，而 /sys 是
+# Linux sysfs、-printf 是 GNU find 的擴充 —— macOS host 兩者都沒有。不 stub 的話
+# 那個迴圈整段跳過，「本機子網段有放行」在 macOS 上會永遠是紅的。
+# 全 repo 只有 init-firewall.sh:32 這一處用 find，所以蓋掉它是安全的。
+cat > "$stubs/find" <<'EOF'
+#!/bin/bash
+case " $* " in
+    *" /sys/class/net "*) echo eth0 ;;
+    *) exit 0 ;;
+esac
+EOF
 chmod +x "$stubs"/*
 
 # Echoes the script's final "egress restricted to: ..." line.
@@ -107,7 +122,7 @@ check '設了自架站台時 github.com 仍在白名單' 'yes' \
 printf '\n== EXTRA_ALLOWED_DOMAINS ==\n'
 list="$(allowlist EXTRA_ALLOWED_DOMAINS='a.example.com,b.example.com c.example.com')"
 for d in a.example.com b.example.com c.example.com; do
-    check "$d（逗號與空白都吃）" 'yes' \
+    check "${d}（逗號與空白都吃）" 'yes' \
         "$(in_list "$d" "$list")"
 done
 

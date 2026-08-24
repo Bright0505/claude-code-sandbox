@@ -106,6 +106,29 @@ sandbox: git 身分：Your Name <you@example.com>
 ./scripts/test-init-firewall.sh   # 白名單組成（iptables 被 stub 蓋掉，不動真網路）
 ```
 
+⚠️ **這兩支在 host 上驗的是邏輯，不是 Linux 上的行為** —— 網卡列舉、sysfs、
+`iptables`／`ipset`／`dig` 全部是 stub。host 綠燈不等於容器內會過，
+真的要有信心就在容器內再跑一次：
+
+```bash
+docker compose -f docker-compose.claude.yml run --rm claude-sandbox \
+    bash -c './scripts/test-init-firewall.sh && ./scripts/test-git-auth.sh'
+```
+
+### 腳本的執行層
+
+`scripts/` 底下的東西**不是同一個執行環境**。改它們之前先看自己在哪一層：
+
+| 層 | 檔案 | 需求 |
+|---|---|---|
+| **host** | `sandbox.sh` | bash 3.2 相容（macOS 內建的 `/bin/bash` 至今仍是 3.2，`mapfile` 之類 bash 4+ 語法不可用）|
+| **host（測試）** | `scripts/test-git-auth.sh`、`scripts/test-init-firewall.sh` | 同上；環境依賴全部 stub，不需要 docker 也不需要 root |
+| **容器內** | `init-firewall.sh`、`entrypoint.sh`、`setup-git-auth.sh`、`git-credential-env.sh`、`git-forge-lib.sh` | Linux、root、`iptables`／`ipset`、`/sys/class/net` |
+
+**不需要 docker ≠ 不需要 Linux。** 這條界線沒寫下來的時候，測試的 stub 就會剛好漏掉
+分層邊界上的那幾個依賴（`/sys/class/net`、GNU `find -printf`），
+症狀是「在開發機上跑不起來，但在 CI 或容器裡是綠的」。
+
 ## 連接專案自己的服務(跑測試)
 
 如果專案已經用自己的 `docker-compose.yml` 啟動了 API、DB 等服務，想讓 sandbox 連過去執行測試，用 `sandbox.sh` 啟動：
