@@ -5,6 +5,7 @@
 ## 目錄結構
 
 ```
+CHANGELOG.md                       版本變更與版號語意（升級前先看這份）
 ONBOARDING.md                      開發規範 — 新人手冊（給人讀一次）
 CLAUDE.md                          開發規範 — 執行版（給 Claude 常駐）
 sandbox.sh                         啟動器（host 端）：自動偵測專案網路後啟動 sandbox
@@ -254,4 +255,6 @@ WORKSPACE_DIR=$(pwd) docker compose \
 git submodule update --remote claude-sandbox
 ```
 
-submodule 會把版本釘在特定 commit，更新前建議先看一下 template 端的變更再決定要不要跟進。
+submodule 會把版本釘在特定 commit，更新前先看 [`CHANGELOG.md`](CHANGELOG.md) 再決定要不要跟進 ——
+版號語意（MAJOR／MINOR／PATCH 各自代表套用端要做什麼）也定義在那裡，
+光看版號差距就能判斷這次要不要花時間。
