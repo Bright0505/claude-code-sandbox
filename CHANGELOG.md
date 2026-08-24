@@ -39,6 +39,7 @@
 - `ONBOARDING.md`（人用手冊）與 `CLAUDE.md`（Claude 常駐執行版）兩份，
   取捨判準是**可觸發 vs 不可觸發**
 - 六個 skill 按時機載入：`plan`／`code`／`verify`／`deliver`／`record`／`traps`
+- 另有 `release`：template 上游自己發佈時的流程（套用端不會觸發）
 - `docs/` 骨架：任務索引、事故紀錄、決議紀錄，以及 `record` skill 的
   KNOWN-ISSUES 結構檢查腳本
 
