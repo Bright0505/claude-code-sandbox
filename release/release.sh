@@ -1,7 +1,7 @@
 #!/bin/bash
 # 把 dev 的產品檔發佈到 main。只有上游 template 自己發佈時用 —— 這支不出貨。
 #
-#   release/release.sh v0.2.0
+#   release/release.sh v0.2.0        ← 在 dev 上執行（這支只存在於 dev）
 #
 # 設計：**main 是衍生物，不是分支。** 它的每個檔案都從 dev 產生，所以
 #   - 兩邊從不 merge → 不會有 docs/ 的衝突要處理
@@ -36,7 +36,21 @@ PROD=(
 # main 的 docs/ 只准有這三個檔案
 DOCS_ALLOWED=(docs/DECISIONS.md docs/KNOWN-ISSUES.md docs/tasks/README.md)
 
-die() { printf 'release: ✗ %s\n' "$1" >&2; exit 1; }
+START_BR="$(git rev-parse --abbrev-ref HEAD)"
+
+# 守衛擋下來之後要清場。少了這段，失敗會把 repo 留在「發佈分支 + 一堆 staged
+# 變更」的半成品狀態 —— 下一個動作（切分支）會再失敗一次，而錯誤訊息完全不指向
+# 真正的原因（實測 2026-08-24：C4 觸發後 git checkout 報的是 local changes）。
+die() {
+    printf 'release: ✗ %s\n' "$1" >&2
+    if [ -n "${BR:-}" ] && [ "$(git rev-parse --abbrev-ref HEAD)" = "$BR" ]; then
+        git reset -q --hard HEAD
+        git checkout -q "$START_BR" \
+            && git branch -q -D "$BR" \
+            && printf 'release: 已清場 —— 回到 %s，刪掉半成品分支 %s\n' "$START_BR" "$BR" >&2
+    fi
+    exit 1
+}
 ok()  { printf 'release: ✓ %s\n' "$1"; }
 
 [ -z "$(git status --porcelain)" ] || die "工作區不乾淨，先處理完再發佈"
