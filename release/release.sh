@@ -146,8 +146,11 @@ release: 以上是 $VERSION 的內容，在分支 $BR 上。剩下的步驟（�
        git checkout main && git pull
        git tag $VERSION && git push origin $VERSION
 
-  5. 收尾（可選）
-       git push origin --delete $BR      # 快照用完就沒用了，也避免下次撞名
+  5. 刪掉發佈分支 —— **一定要等第 4 步的 tag 推上去之後**
+       git push origin --delete $BR
+       git branch -D $BR
+       # tag 之前它是那份內容的唯一指標；tag 之後它不帶任何獨有資訊。
+       # 留著的代價：多一個會動的「這一版是什麼」來源，而且會擋住同版號重建。
 
   6. 產物端驗收（見 release skill §9）
        gh repo create <試用名> --template <本 repo> --private
