@@ -56,11 +56,14 @@
 - `docs/KNOWN-ISSUES.md` 的 K-1～K-4（規範文件自己的失效形態，
   判準已全部在 `record` skill §6）
 
-**未銷毀** —— 在 `v0.1.0` 之前的 git 歷史裡：
+**未銷毀** —— 在**上游 repo** `v0.1.0` 之前的 git 歷史裡。
+⚠️ template 產生的 repo **不帶 commit 歷史**，在那裡跑 `git log` 找不到，要去上游拿：
 
 ```bash
-git log --all --diff-filter=D -- docs/tasks/
-git show <commit>:docs/KNOWN-ISSUES.md
+git clone https://github.com/Bright0505/claude-code-sandbox /tmp/cc-sandbox-upstream
+cd /tmp/cc-sandbox-upstream
+git log --diff-filter=D -- docs/tasks/      # 找到移除的那個 commit
+git show <commit>^:docs/KNOWN-ISSUES.md     # 移除前的全文
 ```
 
 ### 已知未驗
