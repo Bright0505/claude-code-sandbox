@@ -11,9 +11,9 @@ grep -n "<檔名>" docs/KNOWN-ISSUES.md
 
 ID 單一系列 `K-<n>`，遞增，**永不重用**。執行者自己的失誤也記。
 
-> **K-5 是上游 template 自己的條目**（影響範圍是隨 template 出貨的檔案）。
-> `K-6` 曾經存在，三條判準各自都有第二個載體之後移出（見 `CHANGELOG.md`）——
-> **編號不重用**。套用本 template 的專案從 **K-7** 起接續。
+> **這是上游 template 自己的事故紀錄，不出貨。** 出貨的是
+> `release/skeleton/KNOWN-ISSUES.md` —— 空骨架，套用端的編號從 `K-1` 開始。
+> 本檔用到 `K-6`（K-1～K-4、K-6 的判準都已升級進 skill 後移除，編號不重用）。
 
 ---
 
