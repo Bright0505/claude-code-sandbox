@@ -55,6 +55,9 @@
 - `docs/tasks/` 三份任務檔（上游自己的研發紀錄，不隨產品出貨）
 - `docs/KNOWN-ISSUES.md` 的 K-1～K-4（規範文件自己的失效形態，
   判準已全部在 `record` skill §6）
+- `docs/KNOWN-ISSUES.md` 的 K-6（三條判準各自都有第二個載體：mutation 流程在
+  `verify` §2、清單成員用 `grep -qx` 在 `scripts/test-init-firewall.sh:32-33`、
+  權限情境要在非 root 驗在 `scripts/test-git-auth.sh:206-216`）
 
 **未銷毀** —— 在**上游 repo** `v0.1.0` 之前的 git 歷史裡。
 ⚠️ template 產生的 repo **不帶 commit 歷史**，在那裡跑 `git log` 找不到，要去上游拿：
