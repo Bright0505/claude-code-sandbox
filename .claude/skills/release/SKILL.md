@@ -169,8 +169,22 @@ GitHub Template repository 只複製 **default branch 的 HEAD**，而且
    下次發佈會**靜默覆蓋**掉它
 
 發佈本身也不直接 commit 到 `main`（禁令 1）—— 從 `main` 開一支發佈分支、
-在那裡把內容擺好、走 PR 進 `main`，tag 打在 merge 之後。
+在那裡把內容擺好，再把 `main` 移過去，tag 打在那之後。
 好處不只是合規：**發佈的 diff 變成可 review 的東西**，包括腳本移除了哪些非骨架檔案。
+
+### 合併方式：一個版本一個 commit
+
+`main` 是衍生物，所以它的歷史應該是「一版一個 commit」，讀 `git log main`
+就等於讀發佈史。三種方式的結果不同：
+
+| 方式 | `main` 得到 | 用不用 |
+|---|---|---|
+| PR → **rebase**，或本機 `git merge --ff-only` | 恰好一個 commit | **用這個** |
+| PR → merge commit | 多一個空的 merge commit | 不用 —— 「這版改了什麼」要多讀一層 |
+| PR → squash | 一個 commit，但 hash 被改寫 | 沒必要 —— 發佈分支本來就只有一個 commit |
+
+開 PR 與否是**留不留紀錄**的選擇，不是合規的選擇（兩者都沒有在 `main` 上 commit）。
+給別人用的東西建議開 —— 每版發佈了什麼、移除了哪些非骨架檔案，都在 PR 的 diff 裡可回查。
 
 紀錄之所以不出現在 `main`，不是因為發佈時清掉了，而是**它從來不在產品檔清單裡**。
 「不會被搬過去」比「記得要清掉」強一個量級（見 `plan` skill「設計一個「選用」機制時」那一節）。
