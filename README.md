@@ -5,6 +5,7 @@
 ## 目錄結構
 
 ```
+CHANGELOG.md                       版本變更與版號語意（升級前先看這份）
 ONBOARDING.md                      開發規範 — 新人手冊（給人讀一次）
 CLAUDE.md                          開發規範 — 執行版（給 Claude 常駐）
 sandbox.sh                         啟動器（host 端）：自動偵測專案網路後啟動 sandbox
@@ -84,7 +85,7 @@ sandbox: git 身分：Your Name <you@example.com>
 ```
 
 **沒設就會明講**，因為「token 沒生效」的下游症狀（跳出帳密提示、或連線逾時）跟環境故障
-長得一樣 —— 同一類誤判的紀錄見 `docs/KNOWN-ISSUES.md` **K-5**。
+長得一樣。判準見 `plan` skill「設計一個「選用」機制時」那一節。
 
 ### 幾個要知道的行為
 
@@ -105,6 +106,29 @@ sandbox: git 身分：Your Name <you@example.com>
 ./scripts/test-git-auth.sh        # credential helper 與啟動設定
 ./scripts/test-init-firewall.sh   # 白名單組成（iptables 被 stub 蓋掉，不動真網路）
 ```
+
+⚠️ **這兩支在 host 上驗的是邏輯，不是 Linux 上的行為** —— 網卡列舉、sysfs、
+`iptables`／`ipset`／`dig` 全部是 stub。host 綠燈不等於容器內會過，
+真的要有信心就在容器內再跑一次：
+
+```bash
+docker compose -f docker-compose.claude.yml run --rm claude-sandbox \
+    bash -c './scripts/test-init-firewall.sh && ./scripts/test-git-auth.sh'
+```
+
+### 腳本的執行層
+
+`scripts/` 底下的東西**不是同一個執行環境**。改它們之前先看自己在哪一層：
+
+| 層 | 檔案 | 需求 |
+|---|---|---|
+| **host** | `sandbox.sh` | bash 3.2 相容（macOS 內建的 `/bin/bash` 至今仍是 3.2，`mapfile` 之類 bash 4+ 語法不可用）|
+| **host（測試）** | `scripts/test-git-auth.sh`、`scripts/test-init-firewall.sh` | 同上；環境依賴全部 stub，不需要 docker 也不需要 root |
+| **容器內** | `init-firewall.sh`、`entrypoint.sh`、`setup-git-auth.sh`、`git-credential-env.sh`、`git-forge-lib.sh` | Linux、root、`iptables`／`ipset`、`/sys/class/net` |
+
+**不需要 docker ≠ 不需要 Linux。** 這條界線沒寫下來的時候，測試的 stub 就會剛好漏掉
+分層邊界上的那幾個依賴（`/sys/class/net`、GNU `find -printf`），
+症狀是「在開發機上跑不起來，但在 CI 或容器裡是綠的」。
 
 ## 連接專案自己的服務(跑測試)
 
@@ -147,7 +171,7 @@ WORKSPACE_DIR=$(pwd) APP_NETWORK_NAME=<網路名> docker compose \
     run --rm claude-sandbox bash
 ```
 
-⚠️ **漏掉 overlay 時失敗是靜默的** —— 不會有任何錯誤訊息，只是所有服務名都解析不到（`curl` exit 6），繞過 DNS 直接打 IP 則是逾時（exit 28，封包被 DROP）。這組症狀讀起來像整個環境壞掉，實際發生過的誤判見 `docs/KNOWN-ISSUES.md` **K-5**。從 `sandbox.sh` 啟動時 entrypoint 會印出接上了哪個網路，沒接上也會明講。
+⚠️ **漏掉 overlay 時失敗是靜默的** —— 不會有任何錯誤訊息，只是所有服務名都解析不到（`curl` exit 6），繞過 DNS 直接打 IP 則是逾時（exit 28，封包被 DROP）。這組症狀讀起來像整個環境壞掉，而不是「少帶了一個參數」。從 `sandbox.sh` 啟動時 entrypoint 會印出接上了哪個網路，沒接上也會明講。
 
 `init-firewall.sh` 只會放行 sandbox 實際加入的網路子網段，不會因此打開整個私有網段(RFC1918)，對外連線的白名單規則不受影響。
 
@@ -231,4 +255,6 @@ WORKSPACE_DIR=$(pwd) docker compose \
 git submodule update --remote claude-sandbox
 ```
 
-submodule 會把版本釘在特定 commit，更新前建議先看一下 template 端的變更再決定要不要跟進。
+submodule 會把版本釘在特定 commit，更新前先看 [`CHANGELOG.md`](CHANGELOG.md) 再決定要不要跟進 ——
+版號語意（MAJOR／MINOR／PATCH 各自代表套用端要做什麼）也定義在那裡，
+光看版號差距就能判斷這次要不要花時間。

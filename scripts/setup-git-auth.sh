@@ -8,8 +8,8 @@
 #
 # The printing is not decoration: a token that quietly isn't in effect produces
 # a credential prompt or a timeout, which reads as "the environment is broken".
-# That misdiagnosis has already happened once here for the network overlay -
-# see docs/KNOWN-ISSUES.md K-5.
+# An optional mechanism with neither a default path nor output on failure gets
+# diagnosed as a broken environment, not as a missing setting.
 set -uo pipefail
 
 # shellcheck source=./git-forge-lib.sh

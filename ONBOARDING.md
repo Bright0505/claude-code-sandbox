@@ -231,13 +231,13 @@
 | 你想知道 | 去哪 |
 |---|---|
 | Claude 實際照什麼規則執行 | `CLAUDE.md` —— 只有常駐的邊界與「什麼時候載入哪個 skill」 |
-| 某個階段的具體做法 | `.claude/skills/` —— 六份，Claude 按需載入（見下） |
+| 某個階段的具體做法 | `.claude/skills/` —— 七份，Claude 按需載入（見下） |
 | 這個專案自己踩過哪些坑 | `docs/KNOWN-ISSUES.md` |
 | 某個決定當初為什麼那樣決 | `docs/DECISIONS.md` |
 | 某個任務當初做了什麼 | `docs/tasks/` —— 按時間讀是了解專案演進最快的方式 |
 | 怎麼在隔離環境裡跑 Claude Code | `README.md` |
 
-### 六個 skill 分別管什麼
+### 七個 skill 分別管什麼
 
 你不需要記住它們，但知道有這些東西，看回報時比較清楚它在做哪一段：
 
@@ -249,3 +249,7 @@
 | `deliver` | 要 commit、開 PR、動 submodule |
 | `record` | 開工前查歷史，或發現值得記的問題／決策 |
 | `traps` | 工具行為反直覺、「看起來成功」但可疑 |
+| `release` | 要發佈版本、打 tag、清理發佈樹 |
+
+前六個是日常會輪到的。`release` 是 template **上游自己**發佈新版時走的流程 ——
+你的專案不會觸發它，除非你也要把自己的 repo 當 template 散佈出去。

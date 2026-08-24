@@ -8,8 +8,9 @@
 #
 # Kept in one file on purpose: a host that the firewall opens but the credential
 # helper doesn't recognise (or vice versa) fails in a way that reads like a
-# network fault. See docs/DECISIONS.md D5 for why this is abstracted now and not
-# earlier - this is the third caller.
+# network fault. Abstracted now and not earlier because this is the third caller:
+# with two samples you cannot tell "same for the same reason" from "same by
+# coincidence", and the third is the first that shows where the variation is.
 #
 # Env var names follow the upstream CLIs so a single .env.claude serves both the
 # CLIs and git: gh reads GH_TOKEN/GITHUB_TOKEN, glab reads GITLAB_TOKEN and

@@ -16,7 +16,8 @@
 # container-internal port, not the one the host publishes.
 #
 # Forgetting this overlay fails silently: every service name just fails to
-# resolve. See ../docs/KNOWN-ISSUES.md K-5.
+# resolve, which reads as a broken environment rather than a missing flag.
+# sandbox.sh exists so that attaching is the default path instead of this.
 services:
   claude-sandbox:
     networks:

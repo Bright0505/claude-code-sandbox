@@ -4,7 +4,8 @@ set -e
 # Not being on a project network is a legitimate way to run the sandbox, but its
 # failure mode is silent: every service name simply fails to resolve, which reads
 # as "the whole environment is broken". Say which state we're in, out loud.
-# SANDBOX_APP_NETWORK is set by sandbox.sh; see docs/KNOWN-ISSUES.md K-5.
+# SANDBOX_APP_NETWORK is set by sandbox.sh. Printing on *both* paths is the
+# point: with output only on success, "no line" and "not reached yet" look the same.
 print_network_summary() {
     if [ -n "${SANDBOX_APP_NETWORK:-}" ]; then
         printf 'sandbox: 已接上專案網路 %s —— 容器內用服務名連線，port 要用容器內部 port（不是 host 發布的 port）\n' \

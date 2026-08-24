@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """結構層檢查專案自己的 KNOWN-ISSUES.md(與可能存在的 known-issues-archive.md)。
 
-只驗「結構」這一層,範圍與理由見本 repo `docs/DECISIONS.md` D7:
+只驗「結構」這一層 —— 這層的失效是靜默的,所以價值集中在此(判準與界線見 record skill §7):
 
     - 指向的 K-n 是否存在
     - archive anchor 是否有效
@@ -22,7 +22,8 @@
         --repo-root .
 
 只用標準庫,跟語言／框架無關(呼叫方式是純 CLI),不會替使用本規範的專案引入額外相依。
-首次實作與驗證(15 則含故意壞掉的 fixture 的測試)在 mcp-fda 專案做的,回饋進本體時原樣搬過來。
+首次實作與驗證在第一個採用本規範的真實專案做的(14 則測試,含每種紅燈各一個的故意壞掉 fixture),
+回饋進本體時原樣搬過來。
 """
 
 from __future__ import annotations
@@ -292,7 +293,7 @@ def run_checks(known_issues_path: Path, archive_path: Path, repo_root: Path):
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="check-known-issues-links",
-        description="KNOWN-ISSUES.md 結構層檢查(不驗語意、不驗漏連結,見 D7)",
+        description="KNOWN-ISSUES.md 結構層檢查(不驗語意、不驗漏連結)",
     )
     parser.add_argument("--known-issues", type=Path, default=Path("docs/KNOWN-ISSUES.md"))
     parser.add_argument("--archive", type=Path, default=Path("docs/known-issues-archive.md"))
