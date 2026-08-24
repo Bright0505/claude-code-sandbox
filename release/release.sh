@@ -8,7 +8,8 @@
 #   - main 上禁止手改 → 改了下次發佈會被靜默覆蓋
 #   - docs/ 不在產品清單裡 → 紀錄不是「被清掉」，是根本不會被搬過去
 #
-# 不 commit、不打 tag、不 push（禁令 2）—— 只把內容擺好，最後一步留給人。
+# 從 main 開一支 release/<版號> 分支作業，之後走 PR 進 main（禁令 1）。
+# 不 commit、不 merge、不打 tag、不 push —— 只把內容擺好，最後一步留給人。
 set -uo pipefail
 
 VERSION="${1:-}"
@@ -47,7 +48,13 @@ n="$(git ls-tree -r --name-only dev -- "${PROD[@]}" | wc -l | tr -d ' ')"
 [ "$n" -gt 0 ] || die "產品檔清單在 dev 上匹配到 0 個檔案 —— 清單寫錯了"
 ok "產品檔清單匹配到 $n 個檔案"
 
-git checkout -q main || die "切不到 main"
+# 不直接在 main 上 commit（禁令 1）—— 從 main 開一支發佈分支，之後走 PR 進 main。
+BR="release/$VERSION"
+if git rev-parse --verify -q "$BR" >/dev/null; then
+    die "$BR 已存在 —— 先處理掉它（這個版號發佈過了？）"
+fi
+git checkout -q -b "$BR" main || die "從 main 開 $BR 失敗"
+ok "在 $BR 上作業（不直接動 main）"
 
 # 先刪再取。git checkout <ref> -- <path> 只做「加入與更新」，**不傳遞刪除** ——
 # 不先刪的話，dev 上已移除的產品檔會永遠留在 main，而且 diff 看不出來。
@@ -62,16 +69,23 @@ git show dev:release/skeleton/KNOWN-ISSUES.md > docs/KNOWN-ISSUES.md
 git show dev:release/skeleton/tasks-README.md > docs/tasks/README.md
 git add -A
 
-# 守衛 2：main 的 docs/ 只准有那三個檔案。
+# docs/ 裡預期外的檔案一律移除，並逐個印出 —— 這是衍生分支，
+# 上面不該有任何不是從 dev 產生的東西。印出來是為了讓它出現在 PR 的 diff 裡。
+expected="$(printf '%s\n' "${DOCS_ALLOWED[@]}" | LC_ALL=C sort)"
+stray="$(git ls-files docs/ | LC_ALL=C sort | grep -vxF -f <(printf '%s\n' "$expected") || true)"
+if [ -n "$stray" ]; then
+    printf '%s\n' "$stray" | while IFS= read -r f; do
+        printf 'release: - 移除非骨架檔案 %s\n' "$f"
+    done
+    printf '%s\n' "$stray" | tr '\n' '\0' | xargs -0 git rm -q --
+fi
+
+# 守衛 2：docs/ 只准剩那三個檔案。
 # 少了這條，「發佈的樹裡不會有紀錄」只能靠紀律，不是機制。
 actual="$(git ls-files docs/ | LC_ALL=C sort)"
-expected="$(printf '%s\n' "${DOCS_ALLOWED[@]}" | LC_ALL=C sort)"
-if [ "$actual" != "$expected" ]; then
-    printf 'release: ✗ main 的 docs/ 有預期外的檔案：\n' >&2
-    printf '%s\n' "$actual" | grep -vxF -f <(printf '%s\n' "$expected") >&2
-    exit 1
-fi
-ok "main 的 docs/ 只有三份骨架"
+[ "$actual" = "$expected" ] || die "docs/ 的內容不等於預期的三份骨架：
+$actual"
+ok "docs/ 只有三份骨架"
 
 # 守衛 3：骨架裡不可有條目
 if git grep -qnE '^### K-[0-9]|^## D[0-9]' -- docs/; then
@@ -81,6 +95,8 @@ ok "docs/ 零條目"
 
 printf '\n'
 git status --short
-printf '\nrelease: 以上是 %s 的內容。確認後自己執行：\n' "$VERSION"
-printf '  git commit -m "release: %s"\n  git tag %s\n' "$VERSION" "$VERSION"
-printf 'release: 本腳本不 commit、不打 tag、不 push。\n'
+printf '\nrelease: 以上是 %s 的內容，在分支 %s 上。確認後自己執行：\n' "$VERSION" "$BR"
+printf '  git commit -m "release: %s"\n' "$VERSION"
+printf '  # 走 PR 進 main（禁令 1：不在 main 上 commit），merge 後再\n'
+printf '  git tag %s   # 打在 main 上\n' "$VERSION"
+printf 'release: 本腳本不 commit、不 merge、不打 tag、不 push（禁令 1-3）。\n'
