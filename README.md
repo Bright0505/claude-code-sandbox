@@ -85,7 +85,7 @@ sandbox: git 身分：Your Name <you@example.com>
 ```
 
 **沒設就會明講**，因為「token 沒生效」的下游症狀（跳出帳密提示、或連線逾時）跟環境故障
-長得一樣 —— 同一類誤判的紀錄見 `docs/KNOWN-ISSUES.md` **K-5**。
+長得一樣。判準見 `plan` skill「設計一個『選用』機制時」。
 
 ### 幾個要知道的行為
 
@@ -171,7 +171,7 @@ WORKSPACE_DIR=$(pwd) APP_NETWORK_NAME=<網路名> docker compose \
     run --rm claude-sandbox bash
 ```
 
-⚠️ **漏掉 overlay 時失敗是靜默的** —— 不會有任何錯誤訊息，只是所有服務名都解析不到（`curl` exit 6），繞過 DNS 直接打 IP 則是逾時（exit 28，封包被 DROP）。這組症狀讀起來像整個環境壞掉，實際發生過的誤判見 `docs/KNOWN-ISSUES.md` **K-5**。從 `sandbox.sh` 啟動時 entrypoint 會印出接上了哪個網路，沒接上也會明講。
+⚠️ **漏掉 overlay 時失敗是靜默的** —— 不會有任何錯誤訊息，只是所有服務名都解析不到（`curl` exit 6），繞過 DNS 直接打 IP 則是逾時（exit 28，封包被 DROP）。這組症狀讀起來像整個環境壞掉，而不是「少帶了一個參數」。從 `sandbox.sh` 啟動時 entrypoint 會印出接上了哪個網路，沒接上也會明講。
 
 `init-firewall.sh` 只會放行 sandbox 實際加入的網路子網段，不會因此打開整個私有網段(RFC1918)，對外連線的白名單規則不受影響。
 
