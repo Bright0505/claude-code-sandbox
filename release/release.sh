@@ -109,8 +109,49 @@ ok "docs/ 零條目"
 
 printf '\n'
 git status --short
-printf '\nrelease: 以上是 %s 的內容，在分支 %s 上。確認後自己執行：\n' "$VERSION" "$BR"
-printf '  git commit -m "release: %s"\n' "$VERSION"
-printf '  # 走 PR 進 main（禁令 1：不在 main 上 commit），merge 後再\n'
-printf '  git tag %s   # 打在 main 上\n' "$VERSION"
-printf 'release: 本腳本不 commit、不 merge、不打 tag、不 push（禁令 1-3）。\n'
+# 一次性設定的檢查：Template repository 開關沒開的話，整套骨架設計是空轉的
+# —— 別人只能 clone，會拿到全部歷史與 dev。這是最容易忘、而且忘了沒有症狀的一項，
+# 所以在這裡主動量，不是寫在文件裡等人想起來。
+if command -v gh >/dev/null 2>&1; then
+    tmpl="$(gh repo view --json isTemplate --jq .isTemplate 2>/dev/null || echo unknown)"
+    case "$tmpl" in
+        true)    ok "Template repository 開關已開" ;;
+        false)   printf 'release: ⚠️ Template repository 開關是關的 —— 別人只能 clone，\n' >&2
+                 printf 'release:    會拿到全部歷史與 dev。去 Settings → General 勾起來。\n' >&2 ;;
+        *)       printf 'release: （沒查到 Template 開關狀態，gh 未認證？自己確認一次）\n' ;;
+    esac
+else
+    printf 'release: （沒有 gh，無法檢查 Template repository 開關 —— 自己確認一次）\n'
+fi
+
+cat <<REMAINING
+
+release: 以上是 $VERSION 的內容，在分支 $BR 上。剩下的步驟（本腳本都不做）：
+
+  1. commit
+       git commit -m "release: $VERSION"
+
+  2. 推發佈分支
+       git push -u origin $BR
+       # 如果這個分支是「重建」的（之前推過同名的），要加 --force-with-lease：
+       #   git push --force-with-lease origin $BR
+
+  3. 把 main 移過來 —— 選一個，都不算在 main 上 commit（禁令 1）
+       a) 本機 fast-forward，hash 完全一致：
+            git checkout main && git merge --ff-only $BR && git push origin main
+       b) 開 PR 留紀錄：GitHub 上 $BR 的頁面 → Compare & pull request
+            → 合併時選 "Rebase and merge"（**不要** Create a merge commit）
+
+  4. 打 tag，在 main 上
+       git checkout main && git pull
+       git tag $VERSION && git push origin $VERSION
+
+  5. 收尾（可選）
+       git push origin --delete $BR      # 快照用完就沒用了，也避免下次撞名
+
+  6. 產物端驗收（見 release skill §9）
+       gh repo create <試用名> --template <本 repo> --private
+       # 驗：skill 載得到、骨架的指針沒斷、git log 是空的
+
+release: 本腳本不 commit、不 push、不 merge、不打 tag（禁令 1-3）。
+REMAINING
