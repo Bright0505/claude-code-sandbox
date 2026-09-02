@@ -124,6 +124,20 @@ docker-compose.claude.yml build`），proxy 容器 `docker rm -f` 掉。
 
 `docker.sock` 在容器內確認不存在（`ls: cannot access '/var/run/docker.sock'`）。
 
+## 交付狀態
+
+- **分支**：`feat/sandbox-docker-access`，已 push 到 `origin`。
+  **沒有直接 commit 在 `dev` 上**（禁令 1：不在主幹 commit）。
+- **沒有開 PR**，也**沒有合進 `dev`** —— 這個 repo 的歷史顯示 docs 類改動
+  直接落在 `dev`，但歷史不構成核准的先例（`deliver` §1），而「要不要合進主幹」
+  是使用者的決定，不是執行者可以順手做的。
+- **套用端要怎麼拿**：這個 repo 被當 submodule 掛進其他專案，所以在那邊
+  `git -C <submodule> fetch && git -C <submodule> checkout feat/sandbox-docker-access`，
+  然後 `docker compose -f docker-compose.claude.yml -f docker-compose.claude.docker.yml build`
+  重建兩個 image。合進 `dev` 之後就改用 `dev`。
+- **沒有更新任何主 repo 的 submodule pin** —— 這個 commit 還沒進 `main`，
+  釘一個尚未穩定的參照會記錄一個不穩定的狀態（`deliver` §4）。
+
 ## 問題紀錄
 
 | 日期 | 問題 | 根因 | 處理 | 已升級到 KNOWN-ISSUES？ |
