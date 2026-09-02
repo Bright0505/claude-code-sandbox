@@ -7,6 +7,7 @@
 | 日期 | 任務 | 涉及範圍 | 一句話 |
 |---|---|---|---|
 | 2026-09-02 | [sandbox 內可使用 docker 指令](2026-09-02-sandbox-docker-access.md) | `scripts/`、`Dockerfile.claude`、`sandbox.sh` | 經過濾 proxy 提供 docker 存取，不掛 socket |
+| 2026-09-02 | [容器內 agent 看不到開機才印的 docker workspace 指引](2026-09-02-agent-workspace-visibility.md) | `CLAUDE.md`、`docs/KNOWN-ISSUES.md` | 同一份印出來的指引，套用端真實使用時對「容器內的 agent」這種讀者等於沒印過 |
 
 > 空的。這裡放**你的專案**的任務計畫檔。
 >
