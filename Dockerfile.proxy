@@ -1,0 +1,18 @@
+# The one container that holds docker.sock. Deliberately minimal: its whole job
+# is to refuse requests, so anything else installed here is attack surface for
+# no benefit.
+#
+# The proxy script is COPYed in, never bind-mounted. A bind mount would put it
+# under /workspace, which the model can write to - and `POST /containers/{id}/restart`
+# is on the allowlist, so an editable script plus a restart is a complete bypass
+# of the thing being enforced.
+FROM python:3.13-alpine
+
+COPY scripts/docker-api-proxy.py /usr/local/bin/docker-api-proxy.py
+
+# Runs as root because it needs to read docker.sock, whose group differs per
+# host. It never executes anything from the request, and never passes request
+# data to a shell.
+EXPOSE 2375
+
+ENTRYPOINT ["python3", "-u", "/usr/local/bin/docker-api-proxy.py"]

@@ -6,6 +6,7 @@
 
 | 日期 | 任務 | 涉及範圍 | 一句話 |
 |---|---|---|---|
+| 2026-09-02 | [sandbox 內可使用 docker 指令](2026-09-02-sandbox-docker-access.md) | `scripts/`、`Dockerfile.claude`、`sandbox.sh` | 經過濾 proxy 提供 docker 存取，不掛 socket |
 
 > 空的。這裡放**你的專案**的任務計畫檔。
 >
