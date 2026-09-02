@@ -63,7 +63,7 @@ agent 不用先撞一次錯誤才知道。
 
 | 日期 | 項目 | commit | 驗證結果（實際觀察到什麼） |
 |---|---|---|---|
-| 2026-09-02 | C1-C3 | (待 commit) | `grep -n "K-8" CLAUDE.md` 無命中；`grep -n "K-8" docs/KNOWN-ISSUES.md` 命中一次（條目標題）|
+| 2026-09-02 | C1-C3 | 8de9db8 | `grep -n "K-8" CLAUDE.md` 無命中；`grep -n "K-8" docs/KNOWN-ISSUES.md` 命中一次（條目標題）|
 
 ## 問題紀錄
 
