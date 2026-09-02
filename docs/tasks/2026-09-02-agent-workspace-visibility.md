@@ -65,6 +65,19 @@ agent 不用先撞一次錯誤才知道。
 |---|---|---|---|
 | 2026-09-02 | C1-C3 | 8de9db8 | `grep -n "K-8" CLAUDE.md` 無命中；`grep -n "K-8" docs/KNOWN-ISSUES.md` 命中一次（條目標題）|
 
+## 交付狀態
+
+- **分支**：`docs/ggr-agent-workspace-visibility`，已 push 到 `origin`。
+  **沒有直接 commit 在 `dev` 上**（禁令 1）
+- **PR**：[#21](https://github.com/Bright0505/claude-code-sandbox/pull/21)，
+  base `dev`，head `docs/ggr-agent-workspace-visibility`。已開，**尚未合併**——
+  合不合進 `dev` 是使用者的決定
+- 第一次嘗試 push／開 PR 時這個 session 沒有 `GITHUB_TOKEN`（`.env.claude` 還是
+  範本的 `ghp_xxxxxxxx` 佔位值），`gh auth status` 回「未登入」，`git ls-remote`
+  對 SSH remote 直接卡到逾時（見鐵則 8／`deliver` §5 的既有判準：SSH 在這個環境
+  會被防火牆擋住，不是 repo 連不到）。使用者在自己的機器上設定 `.env.claude` 的
+  `GITHUB_TOKEN` 後重啟 session，第二次 `gh auth status` 確認登入成功才執行 push／PR
+
 ## 問題紀錄
 
 | 日期 | 問題 | 根因 | 處理 | 已升級到 KNOWN-ISSUES？ |
