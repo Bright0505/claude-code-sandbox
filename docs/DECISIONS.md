@@ -541,3 +541,135 @@ sandbox 自己的 `scripts/`（`entrypoint.sh`／`init-firewall.sh` 所在）帶
 後者可接受 —— `~/.gitconfig` 本來就在容器內、不回寫主機。
 
 **日期**：2026-08-13
+
+---
+
+## D12 — sandbox 內要不要能操作 docker，以及開到哪一格（已決議：採 D）
+
+**問題**：sandbox 目前刻意沒有 docker CLI、不掛 socket（`README.md:59`、
+`sandbox.sh:29`）。但實際採用它的專案多半是 docker 打包的，開發迴圈本身就長在
+容器裡（在容器內跑測試、跑套件管理器、跑框架的 CLI）。目前的設計把這些動作
+全部推回給人，於是**每個迴圈都要停一次**——而那個迴圈一天會跑幾十次。
+
+`sandbox.sh` 的網路 overlay 只解決了「連得到已啟動的服務」，沒解決
+「在服務的容器裡執行指令」和「服務的 image 改了要重建」。
+
+### 選項
+
+| 選項 | 內容 | 代價 | 效果 |
+|---|---|---|---|
+| **A 維持現狀** | 不給任何 docker 存取 | 每次要進容器就中斷一次，人要在場 | 護欄完整 |
+| **B 掛 `docker.sock`** | 容器內裝 docker CLI，直接掛 socket | **等同交出 host root**：可起 sibling container 掛 host 家目錄。防火牆與非 root 同時歸零 | 全能 |
+| **C 端點過濾 proxy** | proxy 持有 socket，只放行 `ps`／`exec`／`logs`，擋掉 `create`／`build` | 網路白名單被繞過（見下）；`build`／`up` 仍要人做 | `exec` 進既有容器 |
+| **D 酬載驗證 proxy** | 同 C，另外放行 `build` 與 `create`，但**檢查 create 的酬載**：mount 來源必須在專案目錄內、拒絕 `Privileged`／`CapAdd`／`Devices`／`NetworkMode: host` | 要自己寫並維護一支 proxy（現成的 tecnativa 只做端點層，不夠）；`build` 期完全不經過防火牆 | 完整迴圈不中斷 |
+
+**B 直接排除**，理由不是風險高低而是它讓這個 repo 失去存在理由：sandbox 的賣點
+就是那兩個強制機制，掛 socket 之後兩個都沒了。
+
+### 已知會被接受的兩個代價（使用者已確認知情，2026-09-02）
+
+這兩點無論選 C 或 D 都成立，**不是實作瑕疵，是「進到既有容器」這件事的性質**：
+
+1. **網路白名單從強制機制降級成預設值。** exec 進去的那個容器沒有防火牆，
+   在裡面可以連到任何地方。**命令白名單擋不住**——套件管理器本來就會照
+   設定檔抓任意 URL，而那個設定檔在 workspace 裡、是模型改得到的。
+   仍然守住的是：掛不到 host 檔案系統、起不了任意 mount 的容器、拿不到 host root。
+2. **proxy 容器自己握著 socket**，它被攻破等於全破。它的攻擊面是一份固定的
+   路徑白名單，且不把任何輸入交給 shell。
+
+### 實測結果（2026-09-02，在 macOS / Docker Desktop 4.82 / Engine 29.6.1 上）
+
+樣本專案：`ggr`（Laravel + `php:8.2-fpm-alpine`，服務 `php1`／`nginx`／`mysql`）。
+
+**① `tecnativa/docker-socket-proxy` 不足以實作選項 C —— 已證否。**
+
+以 `CONTAINERS=1 POST=1 EXEC=1` 啟動後逐一探測：
+
+| 請求 | 回應 | 判讀 |
+|---|---|---|
+| `GET /containers/json` | 200 | 放行 |
+| `POST /containers/create` | **404 `{"message":"No such image: ..."}`** | **穿透到 daemon**（403 才是 proxy 擋下）|
+| `POST /build` | 403 | 擋下，且無旗標可開 |
+| `GET /images/json` | 403 | 擋下 |
+
+接著透過該 proxy 實際建立並啟動一個 `Binds: ["/Users/brightsu:/host_probe:ro"]`
+的容器，**成功列出 host 家目錄內容**（`Applications`／`Documents`／`Library`…）。
+容器已刪除。
+
+結論：它的開關是路徑前綴層級，`CONTAINERS` 涵蓋 `/containers/create`，
+**開了 exec 就等於開了任意 mount**。選項 C 沒有現成解，C 與 D 都要自己寫 proxy。
+
+**② 傳統 builder 仍可用，且只需一個端點 —— 已證實。**
+
+`DOCKER_BUILDKIT=0` 對樣本專案的 `lnmp/Dockerfile` 建置成功（exit 0，93 秒）。
+端點對比：
+
+| builder | 用到的端點 |
+|---|---|
+| `DOCKER_BUILDKIT=0` | **`POST /build`**（僅此一個）|
+| `DOCKER_BUILDKIT=1` | `POST /grpc`、`POST /session`（通用隧道，無法按端點推理）|
+
+結論：強制傳統 builder，`build` 就縮成一個可白名單的端點。
+
+**③ 各指令實際打的端點 —— 已量測。**
+
+| 指令 | 端點 |
+|---|---|
+| `compose exec` | `GET /containers/json`、`GET /containers/{id}/json`、`POST /containers/{id}/exec`、`POST /exec/{id}/start` |
+| `compose logs` | 上列讀取兩條 + `GET /containers/{id}/logs` |
+| `compose ps` | 讀取兩條 |
+| `compose restart` | `GET /containers/json`、`POST /containers/{id}/restart` |
+| `compose up -d` | `GET /images/{name}/json`、`GET /networks`、`GET /networks/{name}`、`GET /volumes`、`GET /containers/json`、**`POST /containers/create`**、`POST /containers/{id}/stop`、`DELETE /containers/{id}`、`POST /containers/{id}/rename`、`POST /containers/{id}/start` |
+
+（全部另有 `HEAD /_ping`。）
+
+**exec 完全不需要 `create`** —— 選項 C 的邊界因此是明確的，問題只在沒有現成實作。
+`up -d` 是唯一需要 `create` 的動作，也就是酬載驗證的唯一理由。
+
+### 實作這支 proxy 時必踩的坑（量測期間真的踩到）
+
+量測用的轉發器寫了兩個 bug，**兩個都是靜默的**，而且第二個差點讓這則決議
+建立在錯誤的資料上：
+
+1. **雙向轉發過早 shutdown** → `docker compose exec` 回 **exit 0 但 stdout 全空**。
+   對照組（直連 socket、以及 tecnativa）同樣指令都有輸出，才定位到是轉發器自己的問題。
+   **判準**：驗證 exec 轉發時，exit code 0 不算通過，**必須斷言 stdout 的內容**。
+2. **只解析每條連線的第一個請求** → docker CLI 用 keep-alive，一條連線打很多次，
+   於是 `compose up` 只記到一個 `HEAD /_ping`。那份清單看起來完整、格式正常、
+   沒有任何錯誤訊息，**只是漏了九成**。
+   **判準**：量測工具要先有「筆數」這種可否證的斷言（修正後同一批指令記到 44 筆）。
+
+這兩條在 proxy 實作出來、且有守備測試之後，應升級成 `KNOWN-ISSUES.md` 的條目
+（現在還沒有可 grep 的影響範圍，硬記只會製造檢索雜訊）。
+
+### 決議：採 D
+
+實測把 C 的成本優勢消掉了 —— 兩者都要自己寫，而 C 少放行的 `POST /build` 與
+`POST /containers/create` 換不到等值的安全性（代價 1 已經開了同一個網路洞），
+卻保留一個每次改 image 就中斷的缺口。
+
+**為什麼不是 A（維持現狀）**：不是安全性不夠好，是它把每個開發迴圈都切斷一次。
+一天幾十次的 exec 與幾次的 rebuild 全部要人在場，而人在場買到的只是
+「有機會順手瞄一眼」，不是審核 —— 真正的閘門是 `git diff` 的人工審閱。
+
+**為什麼不是 B（掛 socket）**：它讓這個 repo 失去存在理由。sandbox 的賣點就是
+防火牆與非 root 這兩個強制機制，掛 socket 之後兩個同時歸零（實測見上）。
+
+**為什麼不是 C**：見上。端點層再嚴，只要 `up -d` 不能用，改完 image 就得換人接手。
+
+實作見 `docs/tasks/2026-09-02-sandbox-docker-access.md`。落地時偏離原計畫的兩處：
+
+1. **`CapAdd` 改成 denylist，不是一律拒絕。** 樣本專案的 compose 有
+   `cap_add: [SYS_PTRACE]`（除錯用），一律拒絕會讓 `docker compose up`
+   在真實專案上直接不能用。改成擋 `ALL`／`SYS_ADMIN`／`SYS_MODULE`／
+   `SYS_RAWIO`／`SYS_BOOT`／`SYS_TIME`／`DAC_READ_SEARCH`／`MAC_*`／`NET_ADMIN`，
+   其餘放行 —— 判準是「改變它對機器能做什麼」而不是「對自己能做什麼」。
+2. **workspace 多掛一份在與 host 相同的絕對路徑上。** compose 把 `./` 解析成
+   當前目錄，而那個路徑最後要由 host 的 daemon 掛載；在 `/workspace` 底下跑
+   會送出 host 上不存在的路徑，daemon 回 `mounts denied`，訊息不指向真正原因。
+
+**代價 1、2 已由使用者確認接受**（見上）。代價 1 的具體語意是：網路白名單
+在這之後是**預設值而不是強制機制**。這一條沒有技術解 —— 任何「進到既有容器」
+的能力都會帶來它。
+
+**日期**：2026-09-02（開立、實測、決議、實作）

@@ -16,8 +16,10 @@
 #   WORKSPACE_DIR        掛進 /workspace 的目錄
 #   APP_NETWORK_NAME     要加入的 docker 網路名；設了就跳過自動偵測
 #   APP_COMPOSE_PROJECT  專案的 compose project 名，供自動偵測使用
+#   SANDBOX_DOCKER       1（預設）啟用容器內的 docker 存取；0 關閉
 #
-# 這支跑在 host，不是在容器內 —— sandbox 內刻意沒有 docker CLI。
+# 這支跑在 host，不是在容器內。容器內有 docker CLI，但 DOCKER_HOST 指向一支
+# 過濾 proxy，不是真的 socket —— 邊界見 docker-compose.claude.docker.yml。
 set -euo pipefail
 
 SANDBOX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -91,21 +93,59 @@ docker network inspect "$APP_NETWORK_NAME" >/dev/null 2>&1 \
            "目前主機上的 compose 網路：" \
            "$(list_compose_networks)"
 
+# --- 決定要不要給 docker 存取 ------------------------------------------------
+# 預設開啟。理由跟網路 overlay 同一條（K-5）：留了選用機制卻不做成預設路徑，
+# 實務上等於預設關閉，而關閉時的失敗長得跟環境故障一模一樣。
+SANDBOX_DOCKER="${SANDBOX_DOCKER:-1}"
+
+COMPOSE_FILES=(
+    -f "$SANDBOX_DIR/docker-compose.claude.yml"
+    -f "$SANDBOX_DIR/docker-compose.claude.network.yml"
+)
+if [ "$SANDBOX_DOCKER" = "1" ]; then
+    COMPOSE_FILES+=(-f "$SANDBOX_DIR/docker-compose.claude.docker.yml")
+fi
+
 # --- 啟動 --------------------------------------------------------------------
 [ "$#" -eq 0 ] && set -- claude
 
 # 只印推導結果；「這代表什麼」由容器內的 entrypoint 說，避免兩邊各講一次。
 printf 'sandbox: workspace = %s\n' "$WORKSPACE_DIR"
 printf 'sandbox: 專案網路 = %s\n' "$APP_NETWORK_NAME"
+printf 'sandbox: compose project = %s\n' "$COMPOSE_PROJECT"
+if [ "$SANDBOX_DOCKER" = "1" ]; then
+    printf 'sandbox: docker 存取 = 啟用（經過濾 proxy）\n'
+else
+    printf 'sandbox: docker 存取 = 關閉（SANDBOX_DOCKER=%s）\n' "$SANDBOX_DOCKER"
+fi
 
 # SANDBOX_APP_NETWORK 傳進容器只為了讓 entrypoint 能印出「接上了什麼」；
-# 真正接上網路的是下面那個 overlay。
-exec env \
-    WORKSPACE_DIR="$WORKSPACE_DIR" \
-    APP_NETWORK_NAME="$APP_NETWORK_NAME" \
-    docker compose \
-        -f "$SANDBOX_DIR/docker-compose.claude.yml" \
-        -f "$SANDBOX_DIR/docker-compose.claude.network.yml" \
-        run --rm \
-        -e SANDBOX_APP_NETWORK="$APP_NETWORK_NAME" \
-        claude-sandbox "$@"
+# 真正接上網路的是上面那個 overlay。
+# APP_COMPOSE_PROJECT 則是給 proxy 用的：它決定哪些容器可以被操作。
+run_sandbox() {
+    env \
+        WORKSPACE_DIR="$WORKSPACE_DIR" \
+        APP_NETWORK_NAME="$APP_NETWORK_NAME" \
+        APP_COMPOSE_PROJECT="$COMPOSE_PROJECT" \
+        docker compose "${COMPOSE_FILES[@]}" \
+            run --rm \
+            -e SANDBOX_APP_NETWORK="$APP_NETWORK_NAME" \
+            claude-sandbox "$@"
+}
+
+# 不用 exec：proxy 持有 docker.sock，session 結束後不該留著。`run --rm` 只清掉
+# sandbox 自己的容器，不會動 depends_on 起來的服務。
+# `|| rc=$?` 而不是直接 `rc=$?`：set -e 會在非零離開時直接中止腳本，
+# 清理就不會跑，proxy 會留著持有 docker.sock。
+rc=0
+run_sandbox "$@" || rc=$?
+
+if [ "$SANDBOX_DOCKER" = "1" ]; then
+    env WORKSPACE_DIR="$WORKSPACE_DIR" \
+        APP_NETWORK_NAME="$APP_NETWORK_NAME" \
+        APP_COMPOSE_PROJECT="$COMPOSE_PROJECT" \
+        docker compose "${COMPOSE_FILES[@]}" rm -sf docker-api-proxy >/dev/null 2>&1 \
+        || printf 'sandbox: ⚠️ 未能移除 docker-api-proxy 容器，它仍持有 docker.sock。\n' >&2
+fi
+
+exit "$rc"

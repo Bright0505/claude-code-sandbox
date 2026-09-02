@@ -16,6 +16,25 @@
 
 ---
 
+## v0.2.0
+
+**sandbox 內可以用 docker 指令了，但不掛 `docker.sock`。**
+
+- 新增 `scripts/docker-api-proxy.py`：持有 socket 的過濾 proxy，端點白名單
+  + `containers/create` 酬載驗證。`Dockerfile.proxy` 把它烘進一個最小 image。
+- 新增 `docker-compose.claude.docker.yml`，`sandbox.sh` **預設帶上**；
+  `SANDBOX_DOCKER=0` 可關。啟動時一定印出目前是哪一種狀態。
+- `Dockerfile.claude` 裝入 docker CLI 與 compose plugin；`DOCKER_HOST` 指向
+  proxy，`DOCKER_BUILDKIT=0`（BuildKit 走 `/grpc`／`/session`，無法按端點過濾）。
+- workspace 會多掛一份在**與 host 相同的絕對路徑**上 —— `docker compose up`
+  的相對 bind 路徑要在那裡跑才解析得對。
+
+**套用端要做什麼**：`docker compose -f docker-compose.claude.yml
+-f docker-compose.claude.docker.yml build` 重建，之後照舊用 `./sandbox.sh`。
+邊界與已知取捨見 `README.md`「在容器內操作 docker」與 `docs/DECISIONS.md` D12。
+
+---
+
 ## v0.1.1
 
 只動到上游自己的發佈流程，**套用端不需要做任何事**。

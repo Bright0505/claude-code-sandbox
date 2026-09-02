@@ -12,13 +12,17 @@ sandbox.sh                         啟動器（host 端）：自動偵測專案�
 Dockerfile.claude                  Claude Code sandbox image
 docker-compose.claude.yml          啟動 sandbox 的主要 compose 檔
 docker-compose.claude.network.yml  選用 overlay：讓 sandbox 加入專案自己的網路
+docker-compose.claude.docker.yml   overlay（sandbox.sh 預設帶）：容器內的 docker 存取
+Dockerfile.proxy                   docker API 過濾 proxy 的最小 image
+scripts/docker-api-proxy.py        過濾 proxy：端點白名單 + create 酬載驗證，持有 docker.sock
 scripts/init-firewall.sh           容器啟動時設定的網路白名單
-scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使用者，並印出網路狀態
+scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使用者，並印出網路與 docker 狀態
 scripts/setup-git-auth.sh          啟動時把 .env.claude 的 token 變成可用的 git 設定
 scripts/git-credential-env.sh      git credential helper：只從環境變數回答，token 不落地
 scripts/git-forge-lib.sh           GitHub/GitLab 的 host 與 token 環境變數解讀（三個腳本共用）
 scripts/test-git-auth.sh           上面三支的測試（不需要 docker）
 scripts/test-init-firewall.sh      白名單組成的測試（用 stub 蓋掉 iptables，不動真網路）
+scripts/test-docker-api-proxy.py   過濾規則的測試（daemon 查詢注入，不需要 docker）
 .env.claude.example                ANTHROPIC_API_KEY 與 GitHub/GitLab token 範本
 .claude-config/                    (執行時產生) 專案專屬的 Claude Code 設定/登入狀態
 ```
@@ -56,7 +60,7 @@ docker compose -f docker-compose.claude.yml run --rm claude-sandbox claude
 - **基底**：`node:24-bookworm-slim`(Node 24 LTS)。Claude Code CLI 本身是 Node 程式,因此不論專案語言是什麼,sandbox 都需要 Node——這跟專案自己的執行環境版本無關。
 - **非 root 使用者**：容器以 `claude`(uid/gid 1000)執行實際指令,只有防火牆設定階段短暫使用 root。
 - **網路白名單**：`init-firewall.sh` 預設擋掉所有對外連線,只放行 Claude Code 實際需要的網域(Anthropic API、`platform.claude.com` 登入/token 交換、GitHub、GitLab、npm、PyPI 等)。任何未列在白名單的網域一律被擋。`.env.claude` 裡設的 `GITLAB_HOST`／`GITHUB_HOST`（自架站台）會自動加進白名單,其他網域用 `EXTRA_ALLOWED_DOMAINS` 追加,兩者都不需要改這個檔案。解析不到的網域會印出警告——否則症狀會是連線逾時,讀起來像服務或憑證壞掉。
-- **不提供 docker socket / Docker-in-Docker**：sandbox 內刻意不能執行 `docker build`/`docker compose up` 之類的指令。掛載 host 的 `docker.sock` 等同給予 host root 權限,會讓前述的防火牆與非 root 隔離全部失去意義。專案自己的容器建置/啟動應該在 sandbox 外(人工或 CI)執行。
+- **不掛 docker socket,但 docker 指令可用**：sandbox 內有標準的 docker CLI,`DOCKER_HOST` 指向一支只放行特定端點的過濾 proxy——不是真的 socket。掛載 host 的 `docker.sock` 等同給予 host root 權限,會讓前述的防火牆與非 root 隔離全部失去意義;proxy 的存在就是為了拿到 `docker compose exec`／`build` 的能力而不付這個代價。邊界與實測見下方「在容器內操作 docker」。
 
 ## 在容器內 commit / push（GitHub 與 GitLab）
 
@@ -129,6 +133,52 @@ docker compose -f docker-compose.claude.yml run --rm claude-sandbox \
 **不需要 docker ≠ 不需要 Linux。** 這條界線沒寫下來的時候，測試的 stub 就會剛好漏掉
 分層邊界上的那幾個依賴（`/sys/class/net`、GNU `find -printf`），
 症狀是「在開發機上跑不起來，但在 CI 或容器裡是綠的」。
+
+## 在容器內操作 docker
+
+`./sandbox.sh` 預設就會啟用。容器內用的是**標準的 docker CLI**，只是 `DOCKER_HOST`
+指向一支過濾 proxy（`scripts/docker-api-proxy.py`），由它持有 `docker.sock`：
+
+```
+docker.sock ──▶ [docker-api-proxy] ──tcp──▶ [claude-sandbox]
+                 端點白名單                   docker / docker compose
+                 + create 酬載驗證
+```
+
+| | |
+|---|---|
+| **可用** | `docker compose exec／logs／ps／restart／up -d`、`docker build`、`docker run` |
+| **不可用** | 掛載 workspace 以外的路徑、`--privileged`、危險的 `--cap-add`、`docker pull`、操作其他 compose project 的容器、`docker info`、直接連 daemon |
+
+兩層過濾，缺一不可：
+
+1. **端點白名單** —— 沒列出的一律 403。這是 `docker pull`、`commit`、以及 BuildKit
+   的 `/grpc`／`/session` 隧道被關在外面的原因。
+2. **`POST /containers/create` 的酬載驗證** —— 光靠端點過濾在這裡**不夠**。
+   現成的前綴比對型 proxy 只要放行 `/containers/` 前綴，就同時放行了 `create`，
+   而 `Binds: ["/:/host"]` 就在 create 的 body 裡。實測（2026-09-02，
+   `tecnativa/docker-socket-proxy` + `CONTAINERS=1 POST=1`）：透過它成功建立並啟動
+   了一個掛載 host 家目錄的容器。
+
+專案自己的 `docker-compose.yml` 在 workspace 裡、是模型改得到的，所以策略不能是
+「照 compose 檔說的做」，必須放在模型碰不到的地方 —— 這也是 proxy 腳本用 `COPY`
+烘進 image 而不是 bind mount 的原因（可以改的腳本 + 白名單裡的 `restart` = 護欄自己被繞過）。
+
+### 兩件要知道的事
+
+**① 跑 `docker compose up`／`run` 前要先 `cd` 到與 host 相同的路徑。**
+compose 會把 `./` 這種相對 bind 路徑解析成「現在在哪個目錄」，而那個路徑最後要由
+host 的 daemon 掛載。在 `/workspace` 底下跑就會送出一個 host 上不存在的路徑，
+daemon 回 `mounts denied`，訊息看不出真正原因。所以 workspace 會被掛第二份在
+**與 host 一致的絕對路徑**上，啟動時會印出來（也在 `$SANDBOX_HOST_WORKSPACE`）。
+`docker build` 不受影響 —— build context 是從 client 串上去的，不經過 host 路徑。
+
+**② 網路白名單在這之後是預設值，不是強制機制。** exec 進去的那個容器沒有防火牆，
+在裡面可以連到任何地方，而命令白名單擋不住（套件管理器本來就會照設定檔抓任意 URL，
+那個設定檔是模型改得到的）。仍然守住的是：掛不到 host 檔案系統、起不了任意 mount
+的容器、拿不到 host root。判斷這筆交換值不值得，見 `docs/DECISIONS.md` 的 D12。
+
+要關掉：`SANDBOX_DOCKER=0 ./sandbox.sh`。開或關，啟動時都會印出目前是哪一種狀態。
 
 ## 連接專案自己的服務(跑測試)
 
@@ -204,7 +254,7 @@ WORKSPACE_DIR=$(pwd) APP_NETWORK_NAME=<網路名> docker compose \
 
 套用這個 template 的專案，只需要:
 
-1. 保留 `sandbox.sh`、`Dockerfile.claude`、`docker-compose.claude.yml`、`docker-compose.claude.network.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
+1. 保留 `sandbox.sh`、`Dockerfile.claude`、`Dockerfile.proxy`、`docker-compose.claude.yml`、`docker-compose.claude.network.yml`、`docker-compose.claude.docker.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
 2. 依專案實際的語言/框架，另外撰寫自己的 `Dockerfile`、`docker-compose.yml`（可選擇性搭配上方「連接專案自己的服務」章節，讓 sandbox 連得到）。
 3. 需要多放行幾個網域時，先用 `.env.claude` 的 `EXTRA_ALLOWED_DOMAINS`（不用改檔案）；要改動預設清單本身才編輯 `scripts/init-firewall.sh` 裡的 `ALLOWED_DOMAINS`。
 4. `CLAUDE.md` 在專案根目錄會被 Claude Code 自動載入；專案特定資訊（架構、路徑、測試指令、事故清單）寫在它下方或另開一份引用。當 submodule 用時見下一節。
