@@ -176,7 +176,9 @@ daemon 回 `mounts denied`，訊息看不出真正原因。所以 workspace 會�
 **② 網路白名單在這之後是預設值，不是強制機制。** exec 進去的那個容器沒有防火牆，
 在裡面可以連到任何地方，而命令白名單擋不住（套件管理器本來就會照設定檔抓任意 URL，
 那個設定檔是模型改得到的）。仍然守住的是：掛不到 host 檔案系統、起不了任意 mount
-的容器、拿不到 host root。判斷這筆交換值不值得，見 `docs/DECISIONS.md` 的 D12。
+的容器、拿不到 host root。判斷這筆交換值不值得，見上面 ①②；完整的決議過程
+（為什麼是過濾 proxy，而不是掛 socket、也不是完全不給）在上游 repo 的決議紀錄裡，
+取回方式見 `CHANGELOG.md` 檔尾。
 
 要關掉：`SANDBOX_DOCKER=0 ./sandbox.sh`。開或關，啟動時都會印出目前是哪一種狀態。
 

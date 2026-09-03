@@ -31,7 +31,7 @@
 
 **套用端要做什麼**：`docker compose -f docker-compose.claude.yml
 -f docker-compose.claude.docker.yml build` 重建，之後照舊用 `./sandbox.sh`。
-邊界與已知取捨見 `README.md`「在容器內操作 docker」與 `docs/DECISIONS.md` D12。
+邊界與已知取捨見 `README.md`「在容器內操作 docker」。
 
 ---
 
