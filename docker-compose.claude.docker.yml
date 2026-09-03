@@ -1,0 +1,85 @@
+# Overlay: give the sandbox a working `docker` CLI without giving it docker.sock.
+#
+# Normal usage is ../sandbox.sh, which turns this on by default. Turning it off
+# is SANDBOX_DOCKER=0 ./sandbox.sh - and the entrypoint prints which of the two
+# states you are in on every start, because "docker says connection refused" and
+# "docker was never wired up" are indistinguishable otherwise.
+#
+# Manual usage:
+#
+#   WORKSPACE_DIR=$(pwd) APP_COMPOSE_PROJECT=my-proj docker compose \
+#       -f docker-compose.claude.yml \
+#       -f docker-compose.claude.docker.yml \
+#       run --rm claude-sandbox bash
+#
+# What the sandbox can then do: exec/logs/ps/restart/up/build against THIS
+# project's containers. What it still cannot do: mount anything from outside
+# the workspace, run privileged containers, pull images, touch another
+# project's containers, or reach the daemon directly.
+services:
+  docker-api-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.proxy
+    image: claude-sandbox-docker-proxy:latest
+    # Read by the proxy itself to refuse operations on its own container -
+    # otherwise `docker restart` on it is a way to take the guardrail down.
+    labels:
+      sandbox.docker-api-proxy: "1"
+    environment:
+      # Which compose project's containers may be operated on. Empty means the
+      # proxy refuses all container access rather than allowing all of it.
+      SANDBOX_DOCKER_PROJECT: ${APP_COMPOSE_PROJECT:-}
+      # Host-side path that bind mount sources must stay inside.
+      SANDBOX_DOCKER_MOUNT_ROOT: ${WORKSPACE_DIR:-}
+      SANDBOX_DOCKER_MOUNT_ROOT_LOCAL: /mountroot
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The same tree the daemon would resolve bind sources against, so the
+      # proxy can follow symlinks before deciding. Read-only: the proxy has no
+      # reason to write here, and this path is model-writable from the sandbox.
+      - ${WORKSPACE_DIR:-.}:/mountroot:ro
+    restart: unless-stopped
+    networks:
+      - sandbox-ctl
+
+  claude-sandbox:
+    networks:
+      - sandbox-ctl
+    volumes:
+      # The workspace a SECOND time, at the identical host path. Without this,
+      # `docker compose up` fails: compose resolves a relative bind like
+      # `./:/www` against the container-side directory (/workspace), and the
+      # daemon then refuses a host path that does not exist. Mounting the tree
+      # where the host also has it means relative paths resolve to something
+      # the daemon can actually share. Requires WORKSPACE_DIR to be absolute,
+      # which sandbox.sh guarantees.
+      - ${WORKSPACE_DIR:?WORKSPACE_DIR must be an absolute path}:${WORKSPACE_DIR}
+    environment:
+      DOCKER_HOST: tcp://docker-api-proxy:2375
+      # BuildKit does not use POST /build at all - it tunnels everything over
+      # /grpc and /session, which cannot be filtered per endpoint and are
+      # therefore refused. The legacy builder is what keeps `docker build`
+      # inside a single allowlistable endpoint.
+      DOCKER_BUILDKIT: "0"
+      COMPOSE_DOCKER_CLI_BUILD: "0"
+      SANDBOX_DOCKER_PROXY: tcp://docker-api-proxy:2375
+      # Without this, compose inside the sandbox derives the project name from
+      # the mount point (/workspace) instead of the project directory, so every
+      # `docker compose exec <svc>` reports "no such service" while the service
+      # is plainly running. Same name the proxy allows, by construction.
+      COMPOSE_PROJECT_NAME: ${APP_COMPOSE_PROJECT:-}
+      SANDBOX_HOST_WORKSPACE: ${WORKSPACE_DIR:-}
+    depends_on:
+      - docker-api-proxy
+
+# A dedicated network for sandbox <-> proxy only. Deliberately NOT the project's
+# own network: the proxy is the one component holding docker.sock, and putting
+# it where the project's containers can reach it would mean a compromised app
+# container inherits everything the sandbox is allowed to do.
+#
+# internal: true because this network needs no egress - the sandbox reaches the
+# outside world over the project network instead.
+networks:
+  sandbox-ctl:
+    internal: true

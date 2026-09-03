@@ -57,6 +57,13 @@
 8. **存取 GitHub／GitLab 優先用 CLI 工具（`gh`／`glab`）而非裸 `git`＋SSH** ——
    沙箱環境的 SSH port 白名單預設關閉，SSH 連線常連不通；CLI 工具走
    HTTPS／API 認證，能繞過這個限制
+9. **`DOCKER_HOST` 有值時，操作專案自己的 docker compose（`up`／`build` 等牽涉
+   container 生死的指令）前先 `cd` 到 `$SANDBOX_HOST_WORKSPACE`，不是 `/workspace`** ——
+   兩者是同一棵樹的兩個掛載點，但 compose 把 `./` 這種相對路徑解析成「現在在哪個
+   目錄」，在 `/workspace` 下跑會送出一個 host 上不存在的路徑，被 docker proxy 拒絕
+   （`Binds: ... is outside ...`）。純 `exec`／`logs`／`ps` 不受影響。這條規則本來
+   只印在容器開機的 log 裡（給啟動容器的人看），但在容器內工作的 session 讀不到那份
+   開機輸出，所以另外寫進這裡；細節見 README「兩件要知道的事」
 
 ---
 

@@ -25,6 +25,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
+# docker CLI + compose plugin. No daemon and no socket in here: DOCKER_HOST is
+# pointed at the filtering proxy (see docker-compose.claude.docker.yml), which
+# is the only process that ever touches the real socket. The stock CLI is used
+# on purpose - a wrapper would mean everything the model knows about docker
+# stops being true, and the failure would show up as confusing behaviour rather
+# than a clear refusal.
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+    && chmod a+r /etc/apt/keyrings/docker.asc \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        docker-ce-cli docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/* \
+    && docker --version && docker compose version
+
 # node:24 images ship a preexisting uid/gid 1000 ("node"); rename it instead
 # of failing on a collision.
 RUN if getent group "$USER_GID" >/dev/null; then \
