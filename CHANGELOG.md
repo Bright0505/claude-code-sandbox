@@ -20,18 +20,29 @@
 
 **sandbox 內可以用 docker 指令了，但不掛 `docker.sock`。**
 
-- 新增 `scripts/docker-api-proxy.py`：持有 socket 的過濾 proxy，端點白名單
-  + `containers/create` 酬載驗證。`Dockerfile.proxy` 把它烘進一個最小 image。
-- 新增 `docker-compose.claude.docker.yml`，`sandbox.sh` **預設帶上**；
-  `SANDBOX_DOCKER=0` 可關。啟動時一定印出目前是哪一種狀態。
+- 新增 `scripts/docker-api-proxy.py`（持有 socket 的過濾 proxy：端點白名單
+  ＋ `containers/create` 酬載驗證）、`Dockerfile.proxy`、
+  `docker-compose.claude.docker.yml`。`sandbox.sh` **預設帶上**，`SANDBOX_DOCKER=0`
+  可關，兩種狀態啟動時都印出來。
 - `Dockerfile.claude` 裝入 docker CLI 與 compose plugin；`DOCKER_HOST` 指向
   proxy，`DOCKER_BUILDKIT=0`（BuildKit 走 `/grpc`／`/session`，無法按端點過濾）。
 - workspace 會多掛一份在**與 host 相同的絕對路徑**上 —— `docker compose up`
   的相對 bind 路徑要在那裡跑才解析得對。
+- **`CLAUDE.md` 的鐵則多了第 9 條**（上一點那條規則）—— 規範有變，值得重讀：
+  開機時印一次的指引，容器內工作的 agent 讀不到。
 
 **套用端要做什麼**：`docker compose -f docker-compose.claude.yml
 -f docker-compose.claude.docker.yml build` 重建，之後照舊用 `./sandbox.sh`。
 邊界與已知取捨見 `README.md`「在容器內操作 docker」。
+
+### 已知未驗
+
+- 不放行 `docker pull`、BuildKit、以及操作**別的 compose project** 的容器 ——
+  刻意的邊界，不是還沒做
+- 實跑驗收只做過**一個樣本專案**（Laravel／PHP），規則層測試則不需要 docker
+- 觀察到但**根因未查證**：一次被 proxy 拒絕、換路徑重跑的 `docker compose up -d`
+  之後，一個這次沒動到的服務容器被 compose 改名成 `<hash>_<原名>`。
+  不確定是 proxy 還是 compose 在部分失敗後的行為
 
 ---
 
@@ -62,9 +73,15 @@
 
 ### 已知未驗
 
-- `sandbox.sh` 只在 macOS／Docker Desktop 驗過，**未在 Linux host 驗**
 - `APP_NETWORK_NAME` 指向**非 compose 建立**的網路只驗過「不存在時報錯」，
   沒驗過「存在時接得上」—— 殘餘風險在 driver／IPAM 層
+
+---
+
+## 一直沒驗過的環境
+
+到目前為止**每一個版本**都只在 macOS／Docker Desktop 上實跑過，**沒有在 Linux host
+上驗過**。這一條不隨版本改變，所以不重複寫進各版的「已知未驗」。
 
 ---
 
