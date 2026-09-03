@@ -106,7 +106,8 @@
 
 - `main` = `v0.2.0` = `b6623a0`，`main` 的歷史是一版一個 commit（`v0.1.0` → `v0.1.1` → `v0.2.0`）
 - 發佈分支 `release/v0.2.0` 已在 tag 推上去**之後**刪除（遠端＋本機）
-- 產物端試用 repo `cc-sandbox-v020-probe` 驗完後**沒有刪成**——`gh` 的 token 沒有
-  `delete_repo` scope（`HTTP 403`）。要刪的話需要 `gh auth refresh -h github.com -s delete_repo`
-  （互動式，得由使用者自己跑）
+- 產物端試用 repo `cc-sandbox-v020-probe` 已刪除。第一次刪失敗——`gh` 的 token 沒有
+  `delete_repo` scope（`HTTP 403`），使用者跑過 `gh auth refresh -h github.com -s delete_repo`
+  （互動式，只能由使用者自己跑）之後才刪掉。
+  **下次做 §9 驗收前先確認這個 scope**，否則會卡在最後一步
 - **沒有在 Linux host 上驗過任何東西**（這條已抽進 `CHANGELOG.md` 檔尾的固定小節）
