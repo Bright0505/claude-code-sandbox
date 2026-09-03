@@ -21,8 +21,10 @@ VERSION="${1:-}"
 PROD=(
     sandbox.sh
     Dockerfile.claude
+    Dockerfile.proxy
     docker-compose.claude.yml
     docker-compose.claude.network.yml
+    docker-compose.claude.docker.yml
     scripts
     .claude
     CLAUDE.md
@@ -35,6 +37,8 @@ PROD=(
 )
 # main 的 docs/ 只准有這三個檔案
 DOCS_ALLOWED=(docs/DECISIONS.md docs/KNOWN-ISSUES.md docs/tasks/README.md)
+# 不出貨、但確實存在於 dev 頂層的東西。要跟 PROD 一起蓋滿 dev 的頂層條目（守衛 0）。
+NOT_SHIPPED=(docs release)
 
 START_BR="$(git rev-parse --abbrev-ref HEAD)"
 
@@ -55,6 +59,19 @@ ok()  { printf 'release: ✓ %s\n' "$1"; }
 
 [ -z "$(git status --porcelain)" ] || die "工作區不乾淨，先處理完再發佈"
 git rev-parse --verify -q dev >/dev/null || die "找不到 dev 分支"
+
+# 守衛 0：dev 的頂層條目必須被 PROD 或 NOT_SHIPPED 蓋滿。
+# 少了這條，「dev 上新增一個產品檔、但忘了加進 PROD」是**完全靜默**的 ——
+# 守衛 1 只驗「匹配數 > 0」（舊清單照樣匹配得到），docs/ 的兩道守衛只看 docs/，
+# 於是三道全綠而發佈樹少了一個檔案。實測 2026-09-03（v0.2.0 發佈前）：
+# Dockerfile.proxy 與 docker-compose.claude.docker.yml 就是這樣漏掉的，
+# 而 sandbox.sh 預設會 -f 那份 compose —— 產物一啟動就壞，但發佈當下沒有任何症狀。
+covered="$(printf '%s\n' "${PROD[@]}" "${NOT_SHIPPED[@]}" | LC_ALL=C sort -u)"
+uncovered="$(git ls-tree --name-only dev | LC_ALL=C sort \
+    | grep -vxF -f <(printf '%s\n' "$covered") || true)"
+[ -z "$uncovered" ] || die "dev 頂層有沒歸類的條目 —— 要嘛加進 PROD，要嘛加進 NOT_SHIPPED：
+$uncovered"
+ok "dev 頂層條目全部有歸類"
 
 # 守衛 1：清單真的匹配到檔案。
 # pathspec 打錯時 git diff／git ls-tree 回空，而「沒漂移」和「沒比到東西」長得一樣。
