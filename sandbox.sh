@@ -94,7 +94,7 @@ docker network inspect "$APP_NETWORK_NAME" >/dev/null 2>&1 \
            "$(list_compose_networks)"
 
 # --- 決定要不要給 docker 存取 ------------------------------------------------
-# 預設開啟。理由跟網路 overlay 同一條（K-5）：留了選用機制卻不做成預設路徑，
+# 預設開啟。理由跟網路 overlay 同一條：留了選用機制卻不做成預設路徑，
 # 實務上等於預設關閉，而關閉時的失敗長得跟環境故障一模一樣。
 SANDBOX_DOCKER="${SANDBOX_DOCKER:-1}"
 

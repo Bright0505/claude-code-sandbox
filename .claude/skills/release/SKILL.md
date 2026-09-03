@@ -91,10 +91,19 @@ grep 到的引用**不是同一種東西**，混在一起數就會判斷錯：
 | **前瞻規則** | 指向**目錄或檔名格式**（`docs/tasks/YYYY-MM-DD-*.md`）| 不受影響 —— 那是給套用端的規則 |
 | **指名引用** | 指向**特定檔名或條目 ID**（`K-<n>`／`D<n>`）| 會斷，每一處都要處理 |
 
+⚠️ **掃描範圍要等於產品檔清單，不是「文件檔」。** 程式碼註解裡的 `K-<n>` 一樣會出貨，
+而且沒有人在讀 `.sh` 的時候期待看到編號 —— 實測 2026-09-03：只掃 `.md` 那幾份的話，
+`sandbox.sh` 與 `scripts/entrypoint.sh` 註解裡的兩處 `K-5` 完全掃不到。
+
 ```bash
 grep -rnE "docs/(DECISIONS|KNOWN-ISSUES|tasks)|\bK-[0-9]+\b|\bD[0-9]+\b" \
+    sandbox.sh Dockerfile.* docker-compose.claude*.yml scripts/ \
     .claude/ CLAUDE.md README.md ONBOARDING.md CHANGELOG.md docs/
 ```
+
+⚠️ 用 `grep`，**不要換成 `git grep`** —— `git grep -E` 不吃 `\b`，同一條 pattern 會
+靜默回零命中（2026-09-03 實測：連刻意留在測試 fixture 裡的 `K-99` 都掃不到）。
+換工具前先做陽性對照：拿一個**你知道一定在**的字串跑一次，確認它抓得到。
 
 **每一筆都要能說出它屬於哪一類。** 說不出來的就是還沒審完 —— 不要用「看起來沒事」結案。
 
