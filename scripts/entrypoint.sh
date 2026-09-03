@@ -17,7 +17,7 @@ print_network_summary() {
     fi
 }
 
-# Same failure shape as the network overlay (K-5): docker access is optional,
+# Same failure shape as the network overlay: docker access is optional,
 # and when it is off every docker command fails with a connection error that
 # reads as a broken environment rather than as a deliberate configuration.
 #
