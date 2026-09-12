@@ -16,6 +16,25 @@
 
 ---
 
+## v0.2.1
+
+**sandbox 容器會帶入 host 的 `TERM`／`COLORTERM` 了。**
+
+- `docker-compose.claude.yml` 以不給值的形式列出這兩個變數，語意是從跑 compose
+  的 host shell 原樣帶進去（host 沒設就不設，不會變成硬編的固定值）。
+- 沒帶入時容器內的 `TERM` 會退成 `dumb`／`unknown`，終端機的滑鼠選取與複製失效；
+  `COLORTERM` 則是 docker 配 TTY 時也不會自動給的那一個。
+
+**套用端要做什麼**：不用重建映像檔（沒動到 `Dockerfile`），重新 `./sandbox.sh` 即可。
+
+### 已知未驗
+
+- 只驗到兩個變數確實進到容器（刻意用 `--no-TTY` 跑，排除 TTY 自動給 `TERM` 的干擾），
+  **沒有復現「複製不到畫面文字」這個症狀本身** —— 所以修掉的是一個必要條件，
+  不保證是那個症狀的充分解
+
+---
+
 ## v0.2.0
 
 **sandbox 內可以用 docker 指令了，但不掛 `docker.sock`。**
