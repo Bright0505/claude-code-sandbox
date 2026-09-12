@@ -10,6 +10,11 @@ services:
     volumes:
       - ${WORKSPACE_DIR:-.}:/workspace
       - ./.claude-config:/home/claude/.claude
+    environment:
+      # 不給值＝從跑 compose 的 host shell 原樣帶進去。少了這兩個，容器內的 TERM
+      # 會退成 dumb/unknown，終端機的滑鼠選取與複製就失效。
+      - TERM
+      - COLORTERM
     env_file:
       - path: .env.claude
         required: false
