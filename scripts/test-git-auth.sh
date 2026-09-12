@@ -2,8 +2,19 @@
 # Tests for git-forge-lib.sh / git-credential-env.sh / setup-git-auth.sh.
 #
 # Runs on the host with nothing but bash + git - no docker daemon, no image
-# build, no real token. What it cannot cover is listed at the end of
-# docs/tasks/2026-08-13-git-forge-token-auth.md.
+# build, no real token. That shape is also what it cannot cover:
+#
+#   1. Anything that only exists after `docker build` - the image is never built
+#      here, so nothing asserts the built image behaves this way.
+#   2. A real push. The username/token pair the helper returns is checked against
+#      the forges' documented convention, not against a live remote.
+#   3. The image's own runtime. This runs on whatever bash/git the host has; the
+#      image is node:24-bookworm-slim (Debian 12, git 2.39). The scripts use only
+#      safe.directory (git 2.35+) and credential.<url>.helper (older), so no
+#      version-specific behaviour is expected - but that is inference, not a test.
+#
+# Self-hosted GitLab needs `glab auth login --hostname <host>` inside the
+# container; `git push` is unaffected. See README.
 #
 #   ./scripts/test-git-auth.sh
 set -uo pipefail
