@@ -12,6 +12,7 @@
 | 2026-09-12 | [v0.2.1 發佈：TERM 透傳與一個跨版死指標](2026-09-12-release-v021.md) | `docker-compose.claude.yml`、`CHANGELOG.md`、`scripts/test-git-auth.sh` | 稽核的 pattern 只涵蓋條目 ID，涵蓋不到指名的任務檔名，於是一個死指標跟著出貨了三版 |
 | 2026-09-17 | [文件過時掃描](2026-09-17-docs-staleness-audit.md) | `README.md`、`.env.claude.example`、`docs/DECISIONS.md`、`docs/tasks/2026-09-12-release-v021.md` | 全文件掃描：一個把「已修」讀成「現存限制」的反向引用、決議自己打掉的行號指標、清單漏項三處 |
 | 2026-09-17 | [v0.2.2 發佈：更正錯誤的「不需發版」結論](2026-09-17-release-v022.md) | `CHANGELOG.md`、`docs/KNOWN-ISSUES.md`、`docs/tasks/2026-09-17-docs-staleness-audit.md` | 上一輪的收尾斷言複述了中途的舊結果，沒有對著最終 commit 重跑量測，實際上產品檔有變動 |
+| 2026-09-17 | [發佈流程補上 GitHub Release，內容從 CHANGELOG 擷取](2026-09-17-release-notes-from-changelog.md) | `release/release.sh`、`release` skill §8 | 裸 tag 只顯示 release commit 訊息；不用 `--generate-notes`（`main` 兩個 tag 間永遠只有一個 commit），改用 `awk` 擷取 CHANGELOG 該版區塊 |
 
 > **這是上游 template 自己的索引**（出貨的是 `release/skeleton/tasks-README.md` ——
 > 空表格）。上面幾列是上游拿自己當樣本留下的。
