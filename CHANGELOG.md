@@ -16,6 +16,21 @@
 
 ---
 
+## v0.2.3
+
+只動到上游自己的發佈流程，**套用端不需要做任何事**。
+
+- `release` skill 補「GitHub Release 的內容從 `CHANGELOG.md` 擷取，不要另外
+  手打」——裸 tag 在 GitHub 上只顯示 release commit 的訊息，不是變更說明；
+  `release/release.sh`（不出貨）的剩餘手動步驟同步新增擷取指令
+
+### 已知未驗
+
+- 擷取邏輯與指令展開各自獨立測過，但沒有實際對一個真的版本跑過
+  `gh release create` ——**這一版本身就是它第一次被真的用到的場合**
+
+---
+
 ## v0.2.2
 
 **README 與 `.env.claude.example` 補正兩處會讓套用端做錯事的說明。**
