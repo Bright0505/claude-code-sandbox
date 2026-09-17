@@ -8,6 +8,8 @@
 CHANGELOG.md                       版本變更與版號語意（升級前先看這份）
 ONBOARDING.md                      開發規範 — 新人手冊（給人讀一次）
 CLAUDE.md                          開發規範 — 執行版（給 Claude 常駐）
+.claude/skills/                    七個 skill：CLAUDE.md 按時機載入的展開（規範的主體）
+docs/                              任務／事故／決議三份骨架（內容屬於你的專案）
 sandbox.sh                         啟動器（host 端）：自動偵測專案網路後啟動 sandbox
 Dockerfile.claude                  Claude Code sandbox image
 docker-compose.claude.yml          啟動 sandbox 的主要 compose 檔
@@ -32,7 +34,7 @@ scripts/test-docker-api-proxy.py   過濾規則的測試（daemon 查詢注入�
 | | 內容 |
 |---|---|
 | **執行環境** | `Dockerfile.claude` + compose 檔 + `scripts/`：隔離的容器、網路白名單、非 root |
-| **開發規範** | `ONBOARDING.md` + `CLAUDE.md`：委託／執行／驗收的共同紀律 |
+| **開發規範** | `ONBOARDING.md` + `CLAUDE.md` + `.claude/skills/`：委託／執行／驗收的共同紀律 |
 
 ## 快速開始
 
@@ -229,7 +231,9 @@ WORKSPACE_DIR=$(pwd) APP_NETWORK_NAME=<網路名> docker compose \
 
 ## 開發規範
 
-一套給人與 Claude 共用的開發紀律，跟語言/框架無關。它與 sandbox 的執行環境是**獨立的兩件事** —— 不想用容器隔離、只想用這套規範，把兩個 `.md` 拿走即可；反之亦然。
+一套給人與 Claude 共用的開發紀律，跟語言/框架無關。它與 sandbox 的執行環境是**獨立的兩件事** —— 不想用容器隔離、只想用這套規範，把 `ONBOARDING.md`、`CLAUDE.md` 與 **`.claude/skills/` 整個目錄**拿走即可；反之亦然。
+
+⚠️ **`.claude/skills/` 不可省。** `CLAUDE.md` 的主體是「什麼時候載入哪個 skill」，只拿兩個 `.md` 會得到一份**指向不存在 skill 的 `CLAUDE.md`** —— 它看起來完整，但每一條「展開見 `<skill>`」都是死的。
 
 **預設的工作方式是：人委託、Claude 執行、人驗收。** 所以規範分成兩份，因為兩個讀者的需求相反：
 
