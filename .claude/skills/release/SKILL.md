@@ -31,7 +31,7 @@ description: 發佈 — 把這個 repo 從「自己的驗證樣本」收斂成�
 |---|---|---|
 | 判斷哪些檔案屬於骨架、紀錄能不能移除 | 人 | §1-§5 |
 | 產出發佈分支（取產品檔、產生骨架、四道守衛）| **腳本** | §8 |
-| commit、推分支、把 `main` 移過來、打 tag | 人（腳本印出指令）| §8 |
+| commit、推分支、把 `main` 移過來、打 tag、建 GitHub Release | 人（腳本印出指令）| §8 |
 | 開 Template repository 開關 | 人，**一次性** | §7 |
 | 產物端驗收 | 人 | §9 |
 
@@ -258,6 +258,31 @@ GitHub Template repository 只複製 **default branch 的 HEAD**，而且
 tag 不會動、分支會動，哪天有人往它推一個 commit，兩邊就靜默不一致。
 它還會擋住同版號重建（守衛：同名分支已存在就中止），
 於是重建多一個要記得先做的手動步驟。
+
+### GitHub Release 的內容從 `CHANGELOG.md` 擷取，不要另外手打
+
+裸 tag 在 GitHub 上只會顯示被打 tag 那個 commit 的訊息（這裡固定是
+`release: vX.Y.Z`），不是給人看的變更說明。要有一份看起來完整的 Release
+（分類、可讀），內容**必須**從 `CHANGELOG.md` 那一版的區塊擷取 ——
+不要在 `gh release create` 的 `--notes` 裡另外手打一份：版號語意只放一份
+（§6），Release notes 手打第二份的話，兩份遲早會漂移，而且**GitHub Release
+的內容不會被本檔任何一道守衛檢查到**。
+
+```bash
+gh release create $VERSION --title $VERSION --notes-file <(awk -v ver="## $VERSION" \
+  '$0==ver{f=1;next} f&&/^(## |---)/{exit} f' CHANGELOG.md)
+```
+
+擷取靠精確比對 `"## $VERSION"` 這一行，抓到下一個 `"## "` 或 `"---"` 為止。
+**抓出來是空的，代表 `CHANGELOG.md` 沒補這一版的區塊** —— 回頭先補，不要拿
+空字串建 Release（一個沒有內容的 Release 頁面比沒有 Release 更容易誤導人：
+它看起來「發過公告」，實際上什麼都沒說）。
+
+不要用 `gh release create --generate-notes`（GitHub 內建的自動分類，例如按
+commit type 分 Features／Bug Fixes）——那是抓 `main` 兩個 tag 之間的 commit，
+而**`main` 兩個 tag 之間永遠只有一個 `release: vX.Y.Z` commit**（§8：`main`
+是衍生物，每次發版一個 commit）。用它只會得到一行沒有資訊量的清單，不會是
+真正的變更內容。
 
 ### 四個會靜默出錯的地方
 

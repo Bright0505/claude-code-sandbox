@@ -163,13 +163,21 @@ release: 以上是 $VERSION 的內容，在分支 $BR 上。剩下的步驟（�
        git checkout main && git pull
        git tag $VERSION && git push origin $VERSION
 
-  5. 刪掉發佈分支 —— **一定要等第 4 步的 tag 推上去之後**
+  5. 建 GitHub Release，內容從 CHANGELOG.md 那一版的區塊擷取 —— 不要另外手打，
+     版號語意只放一份在 CHANGELOG（release skill §6），Release notes 是它的搬運，
+     不是另一份來源：
+       gh release create $VERSION --title $VERSION --notes-file <(awk -v ver="## $VERSION" \
+         '\$0==ver{f=1;next} f&&/^(## |---)/{exit} f' CHANGELOG.md)
+       # 擷取靠精確比對 "## $VERSION" 這一行，抓到下一個 "## " 或 "---" 為止；
+       # 抓出來是空的就代表 CHANGELOG.md 沒補這一版的區塊，回頭先補再發
+
+  6. 刪掉發佈分支 —— **一定要等第 4 步的 tag 推上去之後**
        git push origin --delete $BR
        git branch -D $BR
        # tag 之前它是那份內容的唯一指標；tag 之後它不帶任何獨有資訊。
        # 留著的代價：多一個會動的「這一版是什麼」來源，而且會擋住同版號重建。
 
-  6. 產物端驗收（見 release skill §9）
+  7. 產物端驗收（見 release skill §9）
        gh repo create <試用名> --template <本 repo> --private
        # 驗：skill 載得到、骨架的指針沒斷、git log 是空的
 
