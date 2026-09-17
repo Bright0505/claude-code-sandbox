@@ -16,6 +16,29 @@
 
 ---
 
+## v0.2.2
+
+**README 與 `.env.claude.example` 補正兩處會讓套用端做錯事的說明。**
+
+- README 目錄結構表補上 `.claude/skills/` 與 `docs/`（原本漏列，但兩者都在出貨
+  清單裡）；並更正「不想用容器隔離，把兩個 `.md` 拿走即可」的舊說法 ——
+  只拿兩個 `.md` 會得到一份**指向不存在 skill 的 `CLAUDE.md`**，`.claude/skills/`
+  要整個一起拿走。
+- `.env.claude.example` 補頭部說明：`sandbox.sh` 不讀這個檔案，寫在這裡的
+  host 端變數（例如 `SANDBOX_DOCKER`）不會生效；並補三個備援別名
+  （`GH_TOKEN`／`GH_HOST`／`GITLAB_ACCESS_TOKEN`）。
+
+**套用端要做什麼**：不用重建、不用改設定，重讀這兩份文件即可 ——
+尤其是打算只挑幾個檔案搬進既有專案的話。
+
+### 已知未驗
+
+- 更正的是文件描述層級的錯誤，沒有實際做一次「只拿兩個 `.md`」再啟動
+  Claude Code、觀察它是否真的指向不存在的 skill
+- 三個新增的備援別名沒有實跑驗證能不能被 git 認證流程接住，只是把它們寫進範例檔
+
+---
+
 ## v0.2.1
 
 **sandbox 容器會帶入 host 的 `TERM`／`COLORTERM` 了。**
