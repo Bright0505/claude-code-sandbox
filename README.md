@@ -105,6 +105,9 @@ sandbox: git 身分：Your Name <you@example.com>
   會被 `glab` 認得，自架站台要在容器內執行 `glab auth login --hostname <host>`。
   `git push` 不受影響 —— 它走的是 credential helper，跟 `glab` 無關
 - **本體有更新過 image 內容時要重新 build**：`docker compose -f docker-compose.claude.yml build`
+- **Claude Code 每天自動更新**：`./sandbox.sh` 每次啟動都會 build，並帶入當天日期當快取鍵，
+  所以每天第一次啟動會重裝 Claude Code 那一層、其他層照樣吃快取。不經 `sandbox.sh`
+  直接 `docker compose build` 的話不會刷新 —— 那一層會停在第一次 build 時的版本
 
 改動這些腳本後可以直接驗，不需要 docker：
 
