@@ -119,18 +119,21 @@ else
     printf 'sandbox: docker 存取 = 關閉（SANDBOX_DOCKER=%s）\n' "$SANDBOX_DOCKER"
 fi
 
-# SANDBOX_APP_NETWORK 傳進容器只為了讓 entrypoint 能印出「接上了什麼」；
-# 真正接上網路的是上面那個 overlay。
-# APP_COMPOSE_PROJECT 則是給 proxy 用的：它決定哪些容器可以被操作。
-run_sandbox() {
+# APP_COMPOSE_PROJECT 是給 proxy 用的：它決定哪些容器可以被操作。
+sandbox_compose() {
     env \
         WORKSPACE_DIR="$WORKSPACE_DIR" \
         APP_NETWORK_NAME="$APP_NETWORK_NAME" \
         APP_COMPOSE_PROJECT="$COMPOSE_PROJECT" \
-        docker compose "${COMPOSE_FILES[@]}" \
-            run --rm \
-            -e SANDBOX_APP_NETWORK="$APP_NETWORK_NAME" \
-            claude-sandbox "$@"
+        docker compose "${COMPOSE_FILES[@]}" "$@"
+}
+
+# SANDBOX_APP_NETWORK 傳進容器只為了讓 entrypoint 能印出「接上了什麼」；
+# 真正接上網路的是上面那個 overlay。
+run_sandbox() {
+    sandbox_compose run --rm \
+        -e SANDBOX_APP_NETWORK="$APP_NETWORK_NAME" \
+        claude-sandbox "$@"
 }
 
 # 不用 exec：proxy 持有 docker.sock，session 結束後不該留著。`run --rm` 只清掉
@@ -141,10 +144,7 @@ rc=0
 run_sandbox "$@" || rc=$?
 
 if [ "$SANDBOX_DOCKER" = "1" ]; then
-    env WORKSPACE_DIR="$WORKSPACE_DIR" \
-        APP_NETWORK_NAME="$APP_NETWORK_NAME" \
-        APP_COMPOSE_PROJECT="$COMPOSE_PROJECT" \
-        docker compose "${COMPOSE_FILES[@]}" rm -sf docker-api-proxy >/dev/null 2>&1 \
+    sandbox_compose rm -sf docker-api-proxy >/dev/null 2>&1 \
         || printf 'sandbox: ⚠️ 未能移除 docker-api-proxy 容器，它仍持有 docker.sock。\n' >&2
 fi
 
