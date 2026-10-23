@@ -128,6 +128,17 @@ sandbox_compose() {
         docker compose "${COMPOSE_FILES[@]}" "$@"
 }
 
+# Claude Code 沒釘版本，但 image 的那一層被 build 快取凍住後就永遠不會更新，
+# 容器內的自動更新也寫不進 root 擁有的 npm 目錄。所以每次啟動都帶今天的日期
+# 進去當快取鍵：一天最多重裝那一層一次，其他層照樣吃快取（實測無變動時約 2 秒）。
+# 不用 --no-cache：那會重建整個 image，實測約 150 秒，每次啟動都付不划算。
+refresh_key="$(date +%Y-%m-%d)"
+printf 'sandbox: 檢查 image（Claude Code 刷新鍵 = %s）\n' "$refresh_key"
+if ! build_log="$(sandbox_compose build \
+        --build-arg CLAUDE_CODE_REFRESH="$refresh_key" claude-sandbox 2>&1)"; then
+    die "image build 失敗：" "$build_log"
+fi
+
 # SANDBOX_APP_NETWORK 傳進容器只為了讓 entrypoint 能印出「接上了什麼」；
 # 真正接上網路的是上面那個 overlay。
 run_sandbox() {
