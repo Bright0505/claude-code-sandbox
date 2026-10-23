@@ -14,6 +14,7 @@
 | 2026-09-17 | [v0.2.2 發佈：更正錯誤的「不需發版」結論](2026-09-17-release-v022.md) | `CHANGELOG.md`、`docs/KNOWN-ISSUES.md`、`docs/tasks/2026-09-17-docs-staleness-audit.md` | 上一輪的收尾斷言複述了中途的舊結果，沒有對著最終 commit 重跑量測，實際上產品檔有變動 |
 | 2026-09-17 | [發佈流程補上 GitHub Release，內容從 CHANGELOG 擷取](2026-09-17-release-notes-from-changelog.md) | `release/release.sh`、`release` skill §8 | 裸 tag 只顯示 release commit 訊息；不用 `--generate-notes`（`main` 兩個 tag 間永遠只有一個 commit），改用 `awk` 擷取 CHANGELOG 該版區塊 |
 | 2026-09-17 | [v0.2.3 發佈：release skill 補 GitHub Release 步驟](2026-09-17-release-v023.md) | `CHANGELOG.md` | 上一輪加的發佈步驟正式出貨；PATCH，套用端不用做事 |
+| 2026-10-23 | [Claude Code 版本被 build 快取凍住](2026-10-23-claude-code-daily-refresh.md) | `Dockerfile.claude`、`sandbox.sh`、`README.md` | 沒釘版號的安裝層被快取重用，image 停在 2.1.258；改成 `sandbox.sh` 帶當天日期當 build arg，一天刷新一次那一層 |
 
 > **這是上游 template 自己的索引**（出貨的是 `release/skeleton/tasks-README.md` ——
 > 空表格）。上面幾列是上游拿自己當樣本留下的。
