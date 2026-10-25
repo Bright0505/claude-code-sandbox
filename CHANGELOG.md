@@ -16,6 +16,26 @@
 
 ---
 
+## v0.2.4
+
+**sandbox 裡的 Claude Code 不會再停在第一次 build 時的版本了。**
+
+- `Dockerfile.claude` 的安裝層沒釘版本，但被 build 快取重用，於是永遠停在第一次
+  build 的版本；容器內的自動更新也寫不進 root 擁有的 npm 目錄。現在安裝層前有
+  `ARG CLAUDE_CODE_REFRESH`，`./sandbox.sh` 每次啟動都帶當天日期進去 ——
+  每天第一次啟動重裝 Claude Code 那一層，同一天再啟動只多約 1 秒
+- 不經 `sandbox.sh`、直接 `docker compose build` 不會刷新
+
+**套用端要做什麼**：不用做事，下一次 `./sandbox.sh` 會自動重建。
+
+### 已知未驗
+
+- 每次刷新後舊 image 變成 `<none>` 留在磁碟（Claude Code 那層約 434MB），
+  目前不會自動清，需要的話手動 `docker image prune`
+- `SANDBOX_DOCKER=0` 路徑、真的跨日、submodule 形態都沒有端到端跑過
+
+---
+
 ## v0.2.3
 
 只動到上游自己的發佈流程，**套用端不需要做任何事**。
