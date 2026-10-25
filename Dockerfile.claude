@@ -68,7 +68,14 @@ RUN arch="$(dpkg --print-architecture)" \
     && rm -f /tmp/glab.deb /tmp/checksums.txt \
     && glab --version
 
-RUN npm install -g @anthropic-ai/claude-code
+# Unpinned on purpose, which means the version is whatever was newest when this
+# layer was first built - Docker reuses the cached layer forever after, and the
+# in-container auto-updater cannot fix it (the global npm dir is root-owned,
+# claude runs as uid 1000). sandbox.sh passes today's date here, so this layer
+# alone is rebuilt at most once a day; changing the value is what busts the cache.
+ARG CLAUDE_CODE_REFRESH=
+RUN echo "claude-code refresh key: ${CLAUDE_CODE_REFRESH:-none}" \
+    && npm install -g @anthropic-ai/claude-code
 
 # Project-scoped config: this directory is bind-mounted from the host project
 # folder (see docker-compose.yml), so login/session state never touches the
