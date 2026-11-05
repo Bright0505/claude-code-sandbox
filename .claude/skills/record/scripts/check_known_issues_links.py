@@ -14,12 +14,14 @@
     - 兩則條目是不是真的同一個故障形態(語意層)
     - 該連而沒連的條目(漏連結啟發式)
 
-用法(在採用本規範的專案的 repo 根目錄執行):
+用法(在採用本規範的專案的 repo 根目錄執行;三個選項都有預設值,就是下面這三個,可省略):
 
-    python3 claude-sandbox/.claude/skills/record/scripts/check_known_issues_links.py \\
+    python3 .claude/skills/record/scripts/check_known_issues_links.py \\
         --known-issues docs/KNOWN-ISSUES.md \\
         --archive docs/known-issues-archive.md \\
         --repo-root .
+
+當 submodule 用時,腳本路徑前面加上 submodule 目錄。不接受位置參數。
 
 只用標準庫,跟語言／框架無關(呼叫方式是純 CLI),不會替使用本規範的專案引入額外相依。
 首次實作與驗證在第一個採用本規範的真實專案做的(14 則測試,含每種紅燈各一個的故意壞掉 fixture),

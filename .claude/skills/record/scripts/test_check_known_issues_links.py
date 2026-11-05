@@ -4,7 +4,11 @@
 每一種紅燈都用故意壞掉的 fixture 觸發一次,確認腳本真的抓得到
 (鐵則 4:沒紅過的測試不算測試)。
 
-執行:python3 -m unittest claude-sandbox/.claude/skills/record/scripts/test_check_known_issues_links.py -v
+執行(在 repo 根目錄;當 submodule 用時路徑前面加上 submodule 目錄):
+
+    python3 .claude/skills/record/scripts/test_check_known_issues_links.py -v
+
+不要用 `python3 -m unittest <路徑>` —— 路徑含 `.claude` 與 `-`,轉不成模組名,會報 Empty module name。
 """
 
 import sys

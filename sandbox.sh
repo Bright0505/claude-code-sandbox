@@ -15,8 +15,11 @@
 # 環境變數（都可省略，省略時自動推導；推導結果一律印出來）：
 #   WORKSPACE_DIR        掛進 /workspace 的目錄
 #   APP_NETWORK_NAME     要加入的 docker 網路名；設了就跳過自動偵測
-#   APP_COMPOSE_PROJECT  專案的 compose project 名，供自動偵測使用
+#   APP_COMPOSE_PROJECT  專案的 compose project 名：自動偵測網路，也決定容器內 docker
+#                        能操作哪些容器（設了 APP_NETWORK_NAME 時仍然有作用）
 #   SANDBOX_DOCKER       1（預設）啟用容器內的 docker 存取；0 關閉
+#   SANDBOX_PEER_GROUP   協作群組名；設了就跟同群組的其他 sandbox 互通 Claude session
+#                        （預設空＝完全隔離）。信任邊界見 docker-compose.claude.peer.yml
 #
 # 這支跑在 host，不是在容器內。容器內有 docker CLI，但 DOCKER_HOST 指向一支
 # 過濾 proxy，不是真的 socket —— 邊界見 docker-compose.claude.docker.yml。
@@ -106,6 +109,23 @@ if [ "$SANDBOX_DOCKER" = "1" ]; then
     COMPOSE_FILES+=(-f "$SANDBOX_DIR/docker-compose.claude.docker.yml")
 fi
 
+# --- 決定要不要加入協作群組 --------------------------------------------------
+# 預設不加入：這是信任邊界（同群組互相看得到、能送訊息、讀得到彼此的 .key），
+# 要由人明確開，不能因為同一台機器就自動打通。
+# volume 由這裡建立而不是交給 compose：同一個群組橫跨多個 compose project，
+# 讓其中一個 project「擁有」它，其他 project 用到時 compose 會警告或拒絕。
+SANDBOX_PEER_GROUP="${SANDBOX_PEER_GROUP:-}"
+if [ -n "$SANDBOX_PEER_GROUP" ]; then
+    # 會變成 volume 名稱的一部分，限制在 docker 接受的字元內
+    [[ "$SANDBOX_PEER_GROUP" =~ ^[a-z0-9][a-z0-9_.-]*$ ]] \
+        || die "SANDBOX_PEER_GROUP 只能用小寫英數與 _ . -，且以英數開頭：$SANDBOX_PEER_GROUP"
+    for v in sessions socks; do
+        docker volume create "claude-peer-$SANDBOX_PEER_GROUP-$v" >/dev/null \
+            || die "無法建立協作群組的 volume：claude-peer-$SANDBOX_PEER_GROUP-$v"
+    done
+    COMPOSE_FILES+=(-f "$SANDBOX_DIR/docker-compose.claude.peer.yml")
+fi
+
 # --- 啟動 --------------------------------------------------------------------
 [ "$#" -eq 0 ] && set -- claude
 
@@ -118,6 +138,7 @@ if [ "$SANDBOX_DOCKER" = "1" ]; then
 else
     printf 'sandbox: docker 存取 = 關閉（SANDBOX_DOCKER=%s）\n' "$SANDBOX_DOCKER"
 fi
+printf 'sandbox: 協作群組 = %s\n' "${SANDBOX_PEER_GROUP:-（未加入）}"
 
 # APP_COMPOSE_PROJECT 是給 proxy 用的：它決定哪些容器可以被操作。
 sandbox_compose() {
@@ -125,6 +146,7 @@ sandbox_compose() {
         WORKSPACE_DIR="$WORKSPACE_DIR" \
         APP_NETWORK_NAME="$APP_NETWORK_NAME" \
         APP_COMPOSE_PROJECT="$COMPOSE_PROJECT" \
+        SANDBOX_PEER_GROUP="$SANDBOX_PEER_GROUP" \
         docker compose "${COMPOSE_FILES[@]}" "$@"
 }
 
