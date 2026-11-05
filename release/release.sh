@@ -25,6 +25,7 @@ PROD=(
     docker-compose.claude.yml
     docker-compose.claude.network.yml
     docker-compose.claude.docker.yml
+    docker-compose.claude.peer.yml
     scripts
     .claude
     CLAUDE.md

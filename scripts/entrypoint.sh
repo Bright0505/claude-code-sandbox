@@ -63,6 +63,64 @@ print_docker_summary() {
         'sandbox: docker compose ps 裡的 docker-api-proxy 服務。' >&2
 }
 
+# Peer messaging is opt-in (docker-compose.claude.peer.yml). Same rule as the
+# two summaries above: say which state we are in, on both paths.
+PEER_SESSIONS_DIR=/home/claude/.claude/sessions
+PEER_SOCKS_DIR=/tmp/cc-socks
+
+print_peer_summary() {
+    if [ -n "${SANDBOX_PEER_GROUP:-}" ]; then
+        printf '%s\n' \
+            "sandbox: 已加入協作群組 ${SANDBOX_PEER_GROUP} —— 同群組其他 sandbox 的 Claude session 可互相看見、互傳訊息" \
+            'sandbox:   同群組＝互相信任：對方能送訊息進來，也讀得到 sessions/ 裡的 .key'
+    else
+        printf '%s\n' \
+            'sandbox: 未加入協作群組 —— 看不到其他 sandbox 的 Claude session。' \
+            'sandbox: 這是啟動方式造成的；要加入請用 SANDBOX_PEER_GROUP=<名稱> ./sandbox.sh 啟動。'
+    fi
+}
+
+# Fresh named volumes are root-owned, and Claude Code silently skips peer
+# registration when the directory is not its own (measured: no <pid>.json, no
+# socket, no error). So hand them to the unprivileged user before dropping.
+prepare_peer_dirs() {
+    chown claude:claude "$PEER_SESSIONS_DIR" "$PEER_SOCKS_DIR"
+}
+
+# Every container has its own PID namespace, so every claude would otherwise be
+# the same small PID - and the shared registry is named by PID, so the later
+# session silently overwrites the earlier one's entry. Burn a random number of
+# PIDs, and keep going until the NEXT pid is unregistered; the very next fork
+# is the one that becomes claude (gosu execs, keeping the PID).
+# Sets PEER_PID to the PID the next child will get. A global, not $(...):
+# command substitution is itself a fork, and nothing may fork between here
+# and the child.
+advance_to_free_pid() {
+    local target=$(( 1000 + RANDOM % 20000 )) n=0 p cand
+    while :; do
+        /bin/true & p=$!
+        wait "$p"
+        n=$((n + 1))
+        cand=$((p + 1))
+        if [ "$n" -ge "$target" ] \
+                && [ ! -e "$PEER_SESSIONS_DIR/$cand.json" ] \
+                && [ ! -e "$PEER_SOCKS_DIR/$cand.sock" ]; then
+            PEER_PID="$cand"
+            return
+        fi
+    done
+}
+
+# Runs "$@" as a child on a free PID and exits with its status. Not exec: exec
+# keeps this script's PID, which is the same in every container.
+run_as_peer() {
+    local rc=0
+    advance_to_free_pid
+    printf 'sandbox:   這個 session 的 PID = %s\n' "$PEER_PID"
+    "$@" || rc=$?
+    exit "$rc"
+}
+
 # Token-based git auth is a convenience, not a guardrail: if it breaks the
 # container must still start - but loudly, because the failure downstream is a
 # credential prompt or a hang, which reads as a broken environment.
@@ -82,11 +140,18 @@ if [ "$(id -u)" = "0" ]; then
     /usr/local/bin/init-firewall.sh
     print_network_summary
     print_docker_summary
+    print_peer_summary
     setup_git_auth gosu claude /usr/local/bin/setup-git-auth.sh
+    if [ -n "${SANDBOX_PEER_GROUP:-}" ]; then
+        prepare_peer_dirs
+        run_as_peer gosu claude "$@"
+    fi
     exec gosu claude "$@"
 fi
 
 print_network_summary
 print_docker_summary
+print_peer_summary
 setup_git_auth /usr/local/bin/setup-git-auth.sh
+[ -n "${SANDBOX_PEER_GROUP:-}" ] && run_as_peer "$@"
 exec "$@"
