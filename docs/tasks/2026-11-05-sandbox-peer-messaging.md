@@ -174,11 +174,12 @@ named volume 用 `docker volume rm <名稱>` 清除，不影響各容器自己�
 
 ## 交付狀態
 
-- **分支**：`feat/sandbox-peer-messaging`（從 `dev` 開出），**未 push、未開 PR** —— 使用者未要求（禁令 2）
+- **分支**：`feat/sandbox-peer-messaging`（從 `dev` 開出），2026-11-05 依使用者指示 push 並開 PR
+  [#40](https://github.com/Bright0505/claude-code-sandbox/pull/40)（base `dev`），**尚未合併** —— 合不合是使用者的決定
 - **commit**：`904e692`（功能 + README + release 白名單）、D13／K-13／K-14 的 docs commit、本任務檔的 docs commit
 - **CHANGELOG**：未寫，留到發版時依 `release` 流程（這是 MINOR 級的新功能）
 - 實驗用的 `peer-exp-*` volume、`peer-coll-test*` volume 已清除；端到端用的 `peer-test-net` 網路與
-  `claude-peer-e2e-*` volume 待使用者關閉測試 session 後清除
+  `claude-peer-e2e-*` volume 已於測試 session 關閉後清除
 
 ## 後續（不在本次範圍）
 

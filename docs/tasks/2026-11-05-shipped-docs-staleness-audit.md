@@ -67,4 +67,5 @@ escalation sweep（`record` §4）：F1 符合「錯誤訊息不指向真正原�
 
 ## 交付狀態
 
-- 分支 `feat/sandbox-peer-messaging`，未 push、未開 PR
+- **分支**：`feat/sandbox-peer-messaging`（從 `dev` 開出），2026-11-05 依使用者指示 push 並開 PR
+  [#40](https://github.com/Bright0505/claude-code-sandbox/pull/40)（base `dev`），**尚未合併** —— 合不合是使用者的決定
