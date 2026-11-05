@@ -68,8 +68,22 @@ print_docker_summary() {
 PEER_SESSIONS_DIR=/home/claude/.claude/sessions
 PEER_SOCKS_DIR=/tmp/cc-socks
 
+# The group name alone is not enough: it also arrives via .env.claude (env_file),
+# where nothing mounts the shared volumes. Trusting the variable then meant
+# claiming "joined" and dying on chown of a directory that does not exist.
+# Only the mounts make this a group member.
+peer_active() {
+    [ -n "${SANDBOX_PEER_GROUP:-}" ] \
+        && mountpoint -q "$PEER_SESSIONS_DIR" \
+        && mountpoint -q "$PEER_SOCKS_DIR"
+}
+
 print_peer_summary() {
-    if [ -n "${SANDBOX_PEER_GROUP:-}" ]; then
+    if [ -n "${SANDBOX_PEER_GROUP:-}" ] && ! peer_active; then
+        printf '%s\n' \
+            "sandbox: ⚠️ 設了 SANDBOX_PEER_GROUP=${SANDBOX_PEER_GROUP}，但共用目錄沒有掛上 —— 未加入協作群組。" \
+            'sandbox:    寫在 .env.claude 不會生效（那只進容器）；要加入請用 SANDBOX_PEER_GROUP=<名稱> ./sandbox.sh 啟動。' >&2
+    elif peer_active; then
         printf '%s\n' \
             "sandbox: 已加入協作群組 ${SANDBOX_PEER_GROUP} —— 同群組其他 sandbox 的 Claude session 可互相看見、互傳訊息" \
             'sandbox:   同群組＝互相信任：對方能送訊息進來，也讀得到 sessions/ 裡的 .key'
@@ -142,7 +156,7 @@ if [ "$(id -u)" = "0" ]; then
     print_docker_summary
     print_peer_summary
     setup_git_auth gosu claude /usr/local/bin/setup-git-auth.sh
-    if [ -n "${SANDBOX_PEER_GROUP:-}" ]; then
+    if peer_active; then
         prepare_peer_dirs
         run_as_peer gosu claude "$@"
     fi
@@ -153,5 +167,5 @@ print_network_summary
 print_docker_summary
 print_peer_summary
 setup_git_auth /usr/local/bin/setup-git-auth.sh
-[ -n "${SANDBOX_PEER_GROUP:-}" ] && run_as_peer "$@"
+peer_active && run_as_peer "$@"
 exec "$@"
