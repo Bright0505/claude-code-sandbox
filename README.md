@@ -241,6 +241,13 @@ WORKSPACE_DIR=$(pwd) APP_NETWORK_NAME=<網路名> docker compose \
 SANDBOX_PEER_GROUP=crossdept ./sandbox.sh
 ```
 
+`sandbox.sh` 照常會先找專案自己的 docker 網路，找不到就中止（見「連接專案自己的服務」）——這跟群組設定無關。單純為了協作、沒有專案服務要連時，給它一個空網路即可：
+
+```bash
+docker network create crossdept-net      # 只需建一次
+SANDBOX_PEER_GROUP=crossdept APP_NETWORK_NAME=crossdept-net ./sandbox.sh
+```
+
 **預設不加入**，跟以前一樣完全隔離。開機時會印出目前在哪個狀態。專屬的協作機器可以把 `export SANDBOX_PEER_GROUP=<名稱>` 寫進 shell 設定檔，這樣那台機器上就不用每次都帶。
 
 ### 共用了什麼、沒共用什麼
@@ -320,7 +327,7 @@ Claude Code 把其他 session 傳來的訊息當成**資訊，不是使用者的
 
 套用這個 template 的專案，只需要:
 
-1. 保留 `sandbox.sh`、`Dockerfile.claude`、`Dockerfile.proxy`、`docker-compose.claude.yml`、`docker-compose.claude.network.yml`、`docker-compose.claude.docker.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
+1. 保留 `sandbox.sh`、`Dockerfile.claude`、`Dockerfile.proxy`、`docker-compose.claude.yml`、`docker-compose.claude.network.yml`、`docker-compose.claude.docker.yml`、`docker-compose.claude.peer.yml`、`scripts/` 原樣（跟語言無關，不需修改）。
 2. 依專案實際的語言/框架，另外撰寫自己的 `Dockerfile`、`docker-compose.yml`（可選擇性搭配上方「連接專案自己的服務」章節，讓 sandbox 連得到）。
 3. 需要多放行幾個網域時，先用 `.env.claude` 的 `EXTRA_ALLOWED_DOMAINS`（不用改檔案）；要改動預設清單本身才編輯 `scripts/init-firewall.sh` 裡的 `ALLOWED_DOMAINS`。
 4. `CLAUDE.md` 在專案根目錄會被 Claude Code 自動載入；專案特定資訊（架構、路徑、測試指令、事故清單）寫在它下方或另開一份引用。當 submodule 用時見下一節。

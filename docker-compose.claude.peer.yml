@@ -3,6 +3,10 @@
 #
 # Normal usage is ../sandbox.sh with SANDBOX_PEER_GROUP=<name>. Without it the
 # sandbox stays fully isolated, and the entrypoint says so on every start.
+# Setting it in .env.claude does NOT join: that only reaches the container, and
+# nothing mounts the volumes below - the entrypoint warns and stays isolated.
+# sandbox.sh still needs a project network; with no project services to reach,
+# `docker network create <net>` once and pass APP_NETWORK_NAME=<net>.
 #
 # How it works - Claude Code's local peer messaging needs two things shared:
 #   - the session registry, $CLAUDE_CONFIG_DIR/sessions/<pid>.json
