@@ -13,7 +13,24 @@ ID 單一系列 `K-<n>`，遞增，**永不重用**。執行者自己的失誤�
 
 > **這是上游 template 自己的事故紀錄，不出貨。** 出貨的是
 > `release/skeleton/KNOWN-ISSUES.md` —— 空骨架，套用端的編號從 `K-1` 開始。
-> 本檔用到 `K-14`（K-1～K-4、K-6 的判準都已升級進 skill 後移除，編號不重用）。
+> 本檔用到 `K-15`（K-1～K-4、K-6 的判準都已升級進 skill 後移除，編號不重用）。
+
+---
+
+### K-15 選用功能的開關變數從 env_file 漏進容器，entrypoint 只看變數就宣稱已啟用並在 chown 時崩潰
+- **影響範圍**：`scripts/entrypoint.sh`（`peer_active`、`print_peer_summary`）、`.env.claude.example`；
+  協作群組（`SANDBOX_PEER_GROUP`）；以及任何「host 端開關 + 容器內依變數分支」的選用功能
+- **狀態**：已修（無守備）
+- **守備**：無 repo 內自動化測試（需要 docker）。2026-11-05 手動 mutation：以 `HEAD` 版 entrypoint 為 mutant，
+  同一情境印「已加入協作群組」後 `chown: cannot access ...`、子程序未執行；修正版印警告並照常啟動
+- **症狀**：容器啟動即退出，唯一的錯誤是 `chown: cannot access '/home/claude/.claude/sessions'`；
+  前一行還印著「已加入協作群組」
+- **根因**：`.env.claude` 經 `env_file` 整份帶進容器，所以 host 端才該讀的開關也會出現在容器內；
+  但掛載共用 volume 的是 `sandbox.sh` 加上的 overlay。entrypoint 用「變數有值」判斷啟用，與「overlay 有掛上」脫鉤
+- **判準**：容器內判斷一個選用功能是否啟用時，看**它實際依賴的資源**（mount、socket、網路）而不是開關變數；
+  新增 host 端變數時，同步檢查 `.env.claude.example` 的「寫在這裡無效」清單
+- **關聯**：與 K-5 同屬「選用機制的狀態被讀錯」形態（K-5 是沒啟用被讀成故障，本則是沒啟用被宣稱成已啟用）
+- **日期**：2026-11-05
 
 ---
 
