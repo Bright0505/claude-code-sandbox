@@ -16,6 +16,28 @@
 
 ---
 
+## v0.3.0
+
+**同一台機器上的多個 sandbox 可以讓裡面的 Claude session 互相詢問、交付工作。**
+
+- 新的選用 overlay `docker-compose.claude.peer.yml`：`SANDBOX_PEER_GROUP=<名稱> ./sandbox.sh`
+  加入協作群組，同群組的 session 用 `ListAgents`／`SendMessage` 互通。**預設不加入**，行為不變
+- 只共用 session 登記與訊息 socket；登入憑證、設定、memory 仍各容器獨立，不同帳號可同群組。
+  **同群組＝互相信任**（能互送訊息、能讀彼此的 `.key`）—— 邊界與授權範本見 README
+- `APP_COMPOSE_PROJECT` 的說明更正：它也決定容器內 docker 能操作哪個 project
+- `verify`／`record` skill 的引用與腳本呼叫方式更正
+
+**套用端要做什麼**：要用協作群組的話，保留新的 overlay 檔並讀 README「多個 sandbox 的 session 互通」；
+不用的話不必做事。`SANDBOX_PEER_GROUP` 要在指令前帶，寫在 `.env.claude` 不會加入（會印警告）。
+
+### 已知未驗
+
+- **跨帳號互通沒有實測**，只驗過同一帳號
+- 依賴 Claude Code 內部行為（登記檔以 PID 命名、socket 位置）；Claude Code 改版後可能失效，目前沒有偵測
+- `docker stop`／當機後的登記是否殘留未測
+
+---
+
 ## v0.2.4
 
 **sandbox 裡的 Claude Code 不會再停在第一次 build 時的版本了。**
