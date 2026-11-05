@@ -1,0 +1,50 @@
+# Optional overlay: let Claude sessions in different sandbox containers on the
+# same machine find and message each other (ListAgents / SendMessage).
+#
+# Normal usage is ../sandbox.sh with SANDBOX_PEER_GROUP=<name>. Without it the
+# sandbox stays fully isolated, and the entrypoint says so on every start.
+# Setting it in .env.claude does NOT join: that only reaches the container, and
+# nothing mounts the volumes below - the entrypoint warns and stays isolated.
+# sandbox.sh still needs a project network; with no project services to reach,
+# `docker network create <net>` once and pass APP_NETWORK_NAME=<net>.
+#
+# How it works - Claude Code's local peer messaging needs two things shared:
+#   - the session registry, $CLAUDE_CONFIG_DIR/sessions/<pid>.json
+#   - the message sockets, /tmp/cc-socks/<pid>.sock (NOT inside the config dir)
+# Only those two are shared. Login, settings and memory stay per container, so
+# containers logged into different accounts do not share credentials.
+#
+# What it deliberately does NOT do: share a PID namespace. That would avoid PID
+# collisions for free, but same UID + same PID namespace lets one container read
+# another's whole filesystem through /proc/<pid>/root - including its login
+# credentials. Instead the entrypoint moves claude to a PID nobody in the group
+# has registered (registry files are named by PID, so a collision silently
+# overwrites the other session's entry).
+#
+# Trust boundary: everything in one group can see every session in it, message
+# it, and read its sessions/*.key. One group = mutually trusted containers.
+#
+# The volumes are external because sandbox.sh creates them: several compose
+# projects (one per workspace) share them, and compose warns or refuses when a
+# volume it "owns" turns out to belong to another project.
+services:
+  claude-sandbox:
+    # The entrypoint runs claude as a child (exec would keep PID 1, the one PID
+    # every container has), so it is no longer PID 1 and needs an init. Killing
+    # the whole process group makes `docker stop` reach claude, not just the
+    # shell waiting on it - otherwise its registry entry is left behind.
+    init: true
+    environment:
+      SANDBOX_PEER_GROUP: ${SANDBOX_PEER_GROUP:?SANDBOX_PEER_GROUP must be set}
+      TINI_KILL_PROCESS_GROUP: "1"
+    volumes:
+      - peer-sessions:/home/claude/.claude/sessions
+      - peer-socks:/tmp/cc-socks
+
+volumes:
+  peer-sessions:
+    name: claude-peer-${SANDBOX_PEER_GROUP}-sessions
+    external: true
+  peer-socks:
+    name: claude-peer-${SANDBOX_PEER_GROUP}-socks
+    external: true
