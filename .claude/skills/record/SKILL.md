@@ -217,7 +217,9 @@ ID 單一系列 `K-<n>`，遞增，**永不重用**。不分前綴 —— 需要
 ### 結構檢查腳本
 
 已實作：`.claude/skills/record/scripts/check_known_issues_links.py`
-（範圍與界線見腳本自己的 docstring，以及下方的能力邊界）。
+（範圍與界線見腳本自己的 docstring，以及下方的能力邊界）。在 repo 根目錄直接執行即可，
+預設讀 `docs/KNOWN-ISSUES.md` 與 `docs/known-issues-archive.md`；要指定別的路徑用
+`--known-issues`／`--archive`／`--repo-root`，**不接受位置參數**。
 
 ⚠️ **能力邊界**：`守備` 那項**只查測試路徑存在，不執行測試** ——
 真的要驗「現在是綠的」需要實際執行測試，增加相依與執行時間，v1 刻意不做。

@@ -19,7 +19,7 @@ docker-compose.claude.peer.yml     選用 overlay：同一台機器上多個 san
 Dockerfile.proxy                   docker API 過濾 proxy 的最小 image
 scripts/docker-api-proxy.py        過濾 proxy：端點白名單 + create 酬載驗證，持有 docker.sock
 scripts/init-firewall.sh           容器啟動時設定的網路白名單
-scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使用者，並印出網路與 docker 狀態
+scripts/entrypoint.sh              root 設定防火牆後降權為非 root 使用者，並印出網路、docker、協作群組與 git 認證狀態
 scripts/setup-git-auth.sh          啟動時把 .env.claude 的 token 變成可用的 git 設定
 scripts/git-credential-env.sh      git credential helper：只從環境變數回答，token 不落地
 scripts/git-forge-lib.sh           GitHub/GitLab 的 host 與 token 環境變數解讀（三個腳本共用）
@@ -115,9 +115,10 @@ sandbox: git 身分：Your Name <you@example.com>
 ```bash
 ./scripts/test-git-auth.sh        # credential helper 與啟動設定
 ./scripts/test-init-firewall.sh   # 白名單組成（iptables 被 stub 蓋掉，不動真網路）
+python3 scripts/test-docker-api-proxy.py   # docker 過濾 proxy 的規則（daemon 查詢注入）
 ```
 
-⚠️ **這兩支在 host 上驗的是邏輯，不是 Linux 上的行為** —— 網卡列舉、sysfs、
+⚠️ **前兩支在 host 上驗的是邏輯，不是 Linux 上的行為** —— 網卡列舉、sysfs、
 `iptables`／`ipset`／`dig` 全部是 stub。host 綠燈不等於容器內會過，
 真的要有信心就在容器內再跑一次：
 
@@ -133,7 +134,7 @@ docker compose -f docker-compose.claude.yml run --rm claude-sandbox \
 | 層 | 檔案 | 需求 |
 |---|---|---|
 | **host** | `sandbox.sh` | bash 3.2 相容（macOS 內建的 `/bin/bash` 至今仍是 3.2，`mapfile` 之類 bash 4+ 語法不可用）|
-| **host（測試）** | `scripts/test-git-auth.sh`、`scripts/test-init-firewall.sh` | 同上；環境依賴全部 stub，不需要 docker 也不需要 root |
+| **host（測試）** | `scripts/test-git-auth.sh`、`scripts/test-init-firewall.sh`、`scripts/test-docker-api-proxy.py`（python3）| 同上；環境依賴全部 stub，不需要 docker 也不需要 root |
 | **容器內** | `init-firewall.sh`、`entrypoint.sh`、`setup-git-auth.sh`、`git-credential-env.sh`、`git-forge-lib.sh` | Linux、root、`iptables`／`ipset`、`/sys/class/net` |
 
 **不需要 docker ≠ 不需要 Linux。** 這條界線沒寫下來的時候，測試的 stub 就會剛好漏掉
@@ -207,7 +208,7 @@ docker compose -f docker-compose.yml up -d   # 專案服務先起來
 |---|---|
 | `WORKSPACE_DIR` | 掛進 `/workspace` 的目錄 |
 | `APP_NETWORK_NAME` | 直接指定網路名，跳過自動偵測（網路不是 compose 建的時候用）|
-| `APP_COMPOSE_PROJECT` | 專案的 compose project 名，供自動偵測使用。專案 compose 有 `name:` 或設了 `COMPOSE_PROJECT_NAME` 時會跟目錄名不同 |
+| `APP_COMPOSE_PROJECT` | 專案的 compose project 名。除了用來自動偵測網路，**也決定容器內 docker 能操作哪些容器**（過濾 proxy 只放行這個 project）。專案 compose 有 `name:` 或設了 `COMPOSE_PROJECT_NAME` 時會跟目錄名不同 —— 這時即使已用 `APP_NETWORK_NAME` 指定網路，也要一併設它，否則容器內 `docker compose exec` 會被拒 |
 
 ### 容器內要用服務名 + **內部** port
 

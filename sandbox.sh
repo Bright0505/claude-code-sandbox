@@ -15,7 +15,8 @@
 # 環境變數（都可省略，省略時自動推導；推導結果一律印出來）：
 #   WORKSPACE_DIR        掛進 /workspace 的目錄
 #   APP_NETWORK_NAME     要加入的 docker 網路名；設了就跳過自動偵測
-#   APP_COMPOSE_PROJECT  專案的 compose project 名，供自動偵測使用
+#   APP_COMPOSE_PROJECT  專案的 compose project 名：自動偵測網路，也決定容器內 docker
+#                        能操作哪些容器（設了 APP_NETWORK_NAME 時仍然有作用）
 #   SANDBOX_DOCKER       1（預設）啟用容器內的 docker 存取；0 關閉
 #   SANDBOX_PEER_GROUP   協作群組名；設了就跟同群組的其他 sandbox 互通 Claude session
 #                        （預設空＝完全隔離）。信任邊界見 docker-compose.claude.peer.yml

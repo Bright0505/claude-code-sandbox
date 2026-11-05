@@ -78,7 +78,7 @@ RUN echo "claude-code refresh key: ${CLAUDE_CODE_REFRESH:-none}" \
     && npm install -g @anthropic-ai/claude-code
 
 # Project-scoped config: this directory is bind-mounted from the host project
-# folder (see docker-compose.yml), so login/session state never touches the
+# folder (see docker-compose.claude.yml), so login/session state never touches the
 # host's global ~/.claude and stays isolated per project.
 ENV CLAUDE_CONFIG_DIR=/home/${USERNAME}/.claude
 RUN mkdir -p "$CLAUDE_CONFIG_DIR" && chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
