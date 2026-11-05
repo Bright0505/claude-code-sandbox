@@ -16,6 +16,7 @@
 | 2026-09-17 | [v0.2.3 發佈：release skill 補 GitHub Release 步驟](2026-09-17-release-v023.md) | `CHANGELOG.md` | 上一輪加的發佈步驟正式出貨；PATCH，套用端不用做事 |
 | 2026-10-23 | [Claude Code 版本被 build 快取凍住](2026-10-23-claude-code-daily-refresh.md) | `Dockerfile.claude`、`sandbox.sh`、`README.md` | 沒釘版號的安裝層被快取重用，image 停在 2.1.258；改成 `sandbox.sh` 帶當天日期當 build arg，一天刷新一次那一層 |
 | 2026-11-05 | [多個 sandbox 容器的 session 互通](2026-11-05-sandbox-peer-messaging.md) | `sandbox.sh`、compose overlay、`scripts/entrypoint.sh`、`README.md` | 跨部門不同帳號，Remote Control 走不通；共用 `sessions/` 與 socket 目錄的 named volume，一個群組一個信任邊界 |
+| 2026-11-05 | [出貨文件深度掃描](2026-11-05-shipped-docs-staleness-audit.md) | `scripts/entrypoint.sh`、`README.md`、skills、`.env.claude.example` | 一個新功能的啟動失敗（`.env.claude` 帶群組名）與九處過時說明；歸檔掃描無可歸檔條目（關聯鏈被無守備條目凍結）|
 
 > **這是上游 template 自己的索引**（出貨的是 `release/skeleton/tasks-README.md` ——
 > 空表格）。上面幾列是上游拿自己當樣本留下的。
