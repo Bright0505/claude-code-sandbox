@@ -69,3 +69,5 @@ escalation sweep（`record` §4）：F1 符合「錯誤訊息不指向真正原�
 
 - **分支**：`feat/sandbox-peer-messaging`（從 `dev` 開出），2026-11-05 依使用者指示 push 並開 PR
   [#40](https://github.com/Bright0505/claude-code-sandbox/pull/40)（base `dev`），**尚未合併** —— 合不合是使用者的決定
+
+> ⚠️ 本檔的 commit hash 是 rebase 合併前的；`dev` 上的對應 hash 見 `2026-11-05-release-v030.md`「rebase 合併造成的 hash 對照」。已於 v0.3.0 出貨。
