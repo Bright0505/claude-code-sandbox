@@ -13,7 +13,40 @@ ID 單一系列 `K-<n>`，遞增，**永不重用**。執行者自己的失誤�
 
 > **這是上游 template 自己的事故紀錄，不出貨。** 出貨的是
 > `release/skeleton/KNOWN-ISSUES.md` —— 空骨架，套用端的編號從 `K-1` 開始。
-> 本檔用到 `K-12`（K-1～K-4、K-6 的判準都已升級進 skill 後移除，編號不重用）。
+> 本檔用到 `K-14`（K-1～K-4、K-6 的判準都已升級進 skill 後移除，編號不重用）。
+
+---
+
+### K-14 協作群組的共用目錄不屬於 claude 使用者時，Claude Code 靜默不登記
+- **影響範圍**：`scripts/entrypoint.sh`（`prepare_peer_dirs`）、`docker-compose.claude.peer.yml`；
+  協作群組（`SANDBOX_PEER_GROUP`）
+- **狀態**：已修（無守備）
+- **守備**：無自動化測試。`prepare_peer_dirs` 在 root 階段 chown 兩個共用目錄
+- **症狀**：`ListAgents` 連**自己**都不列（`This session:` 那行消失）；`sessions/` 只有 `.key`、沒有 `.json`，
+  `/tmp/cc-socks/` 沒有 socket。沒有任何錯誤訊息
+- **根因**：新建的 named volume 掛在 image 內不存在的路徑時，擁有者是 root；Claude Code 對不屬於自己的
+  目錄不登記（實測：目錄為 `root:1000 1777` 時發生；擁有者為執行者 UID 時正常，且會被設成 `700`）。
+  Claude Code 內部的判斷條件**未查證原始碼**
+- **判準**：peer 互通「完全沒反應」時，先看共用目錄的擁有者是不是執行 claude 的 UID，再懷疑網路或帳號
+- **關聯**：與 K-5 同一個「失敗沒有輸出，讀起來像整個壞了」形態
+- **日期**：2026-11-05
+
+---
+
+### K-13 多個容器共用 session 登記時，PID 撞號讓後啟動的 session 靜默覆蓋前一個
+- **影響範圍**：`scripts/entrypoint.sh`（`advance_to_free_pid`、`run_as_peer`）、
+  `docker-compose.claude.peer.yml`；協作群組（`SANDBOX_PEER_GROUP`）
+- **狀態**：已修（無守備）
+- **守備**：無 repo 內自動化測試（需要 docker）。2026-11-05 手動 mutation 驗證：把 1..30000 全標成已登記，
+  正式版選到 30001；拿掉「未登記」檢查的 mutant 選到 9088（已被佔用）
+- **症狀**：不對稱 —— 先啟動的 A 列得到 B，B 什麼都列不到。`sessions/` 只剩一個 `1.json`
+- **根因**：登記檔以 PID 命名（`sessions/<pid>.json`），每個容器有自己的 PID namespace，claude 都是 PID 1。
+  socket 有避讓（後者改名 `1-<n>.sock`），登記檔沒有
+- **判準**：① 跨容器共用任何「以 PID 命名」的東西前，先確認兩邊 PID 是否會重疊
+  ② 用共用 PID namespace 解撞號前，先查同 UID 下 `/proc/<pid>/root` 的可讀性 —— 實測會讓對方檔案系統與憑證可讀
+  ③ entrypoint 用 `exec` 啟動的程式 PID 等於 entrypoint 的 PID，要指定 PID 必須改成子程序
+- **關聯**：無同形態條目
+- **日期**：2026-11-05
 
 ---
 

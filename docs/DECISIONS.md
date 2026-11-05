@@ -690,3 +690,35 @@ sandbox 自己的 `scripts/`（`entrypoint.sh`／`init-firewall.sh` 所在）帶
 要精確的話寫 commit hash。行號只適合引用**不會被這則決議改動**的位置。
 
 依禁令 8，改的是指標形式、不是敘述本身 —— 原本的行號保留在本段。
+
+---
+
+## D13 — 多個 sandbox 的 Claude session 怎麼互通（已決議：採本機通訊 + 各自 PID namespace + 錯開 PID）
+
+**問題**：同一台機器上多個 sandbox 容器（跨部門、**不同 Claude 帳號**），要讓 session 互相詢問、
+交付工作。原設計是每個 sandbox 的 `.claude-config/` 完全隔離（README「不會跟其他專案共用」），
+彼此看不到。
+
+| 選項 | 內容 | 代價 | 效果 |
+|---|---|---|---|
+| Remote Control | 每個 session 開 `/remote-control`，經 claude.ai 互通 | peer 限**同一帳號** | 跨帳號不成立，**不採用** |
+| 共用整個 `.claude-config` | 一個 volume 給所有容器 | 憑證、memory 全共用；所有 session 的 cwd 都是 `/workspace` 而混在一起 | 不同帳號不能共用憑證，**不採用** |
+| 共用 `sessions/` + socket，**共用 PID namespace** | PID 天然不撞 | 同 UID + 同 PID namespace → `/proc/<pid>/root` 可讀對方整個檔案系統，實測**對方的 `.credentials.json` 可讀** | 帳號憑證可被冒用，**不採用** |
+| 同上，但**每側不同 UID** | 擋住 `/proc` 跨讀 | 實測 Claude Code 在目錄不屬於自己時**不登記、也不建 socket**（無錯誤訊息）| 互通不成立，**不可行** |
+| **共用 `sessions/` + socket，各自 PID namespace，啟動前錯開 PID** | entrypoint 把 PID 推到群組內未登記的號碼，以子程序啟動 claude | 依賴 Claude Code 內部行為（登記檔以 PID 命名、socket 在 `/tmp/cc-socks/`）；群組內可互讀 `.key`；啟動多最多約 5 秒 | 互通 ✅、閒置時收到訊息會自行處理 ✅、憑證隔離 ✅ |
+
+**決議**：採最後一列，以 `SANDBOX_PEER_GROUP` 明確加入（預設不加入），一個群組一個 named volume、
+一個信任邊界。
+
+- **為什麼不是 Remote Control**：使用情境是跨部門不同帳號，Remote Control 的 peer 在帳號之內
+- **為什麼不共用 PID namespace**：它解決了撞號，但把「同群組可互傳訊息」擴大成「同群組可讀對方檔案系統與憑證」，
+  超過使用者接受的底線（帳號憑證不能被冒用）
+- **為什麼不用不同 UID**：唯一在系統層真正隔離的做法，但 Claude Code 的 peer 通訊只在同一 OS 使用者之間成立
+- **為什麼預設不加入**：這是 template，會裝在一般開發機上；信任邊界要由人明確開
+- `.key` 在群組內互讀的風險使用者已知悉，規範由使用者另訂
+- 撞號／Claude Code 改版導致登記方式改變的**事後檢查**，使用者決定等方法確認後再加
+
+實測紀錄見 `docs/tasks/2026-11-05-sandbox-peer-messaging.md`（P1 四輪實驗與實作驗證）。
+**跨帳號互通尚未實測**（第二個帳號當天無法取得），目前只驗過同一帳號。
+
+**日期**：2026-11-05
