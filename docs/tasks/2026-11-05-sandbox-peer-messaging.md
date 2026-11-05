@@ -191,3 +191,5 @@ named volume 用 `docker volume rm <名稱>` 清除，不影響各容器自己�
 4. **非 root 啟動路徑**（使用者自行 `-u`）：無法 chown，可能觸發 K-14，未處理未測
 5. **`.key` 在群組內互讀**：規範由使用者另訂
 6. **到期的硬性切斷**：授權範本的到期日目前只靠 Claude 判斷；要硬性切斷需另做 hook
+
+> ⚠️ 本檔的 commit hash 是 rebase 合併前的；`dev` 上的對應 hash 見 `2026-11-05-release-v030.md`「rebase 合併造成的 hash 對照」。已於 v0.3.0 出貨。
